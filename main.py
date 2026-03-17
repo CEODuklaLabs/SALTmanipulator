@@ -5,18 +5,7 @@ Run: python main.py
 
 import time
 
-from config import (
-    SIMULATE,
-    INPUT_BOARD_STACK, OUTPUT_BOARD_STACK,
-    CH_ESTOP, CH_STOP_BTN, CH_START_BTN,
-    CH_JOG_ROT_FWD, CH_JOG_ROT_REV,
-    CH_JOG_VERT_UP, CH_JOG_VERT_DOWN,
-    CH_PULSE_ROT, CH_DIR_ROT, CH_ENABLE_ROT, CH_HOME_ROT,
-    CH_PULSE_VERT, CH_DIR_VERT, CH_ENABLE_VERT, CH_HOME_VERT,
-    ROT_PULSE_HZ, VERT_PULSE_HZ,
-    ROT_HOME_BACKOFF, VERT_HOME_BACKOFF,
-    HOMING_TIMEOUT_S, LOOP_PERIOD,
-)
+from config import *
 from hardware import HardwareInterface
 from motor import MotorController, Direction
 from procedure import ProcedureStateMachine, ProcedureStep

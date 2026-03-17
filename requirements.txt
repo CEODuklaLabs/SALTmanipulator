@@ -1,0 +1,25 @@
+# SALT Manipulator – Python dependencies
+#
+# 1) Standardní závislosti (pip):
+#
+#       pip install -r requirements.txt
+#
+# 2) Hardwarové knihovny Sequent Microsystems (pouze Raspberry Pi):
+#    Tyto nejsou na PyPI – instalují se z GitHubu přes make:
+#
+#       # 16-vstupní deska (lib16inpind)
+#       git clone https://github.com/SequentMicrosystems/16inpind-rpi.git
+#       cd 16inpind-rpi && sudo make install && cd ..
+#
+#       # 16-výstupní deska / relé (lib16relind)
+#       git clone https://github.com/SequentMicrosystems/16relind-rpi.git
+#       cd 16relind-rpi && sudo make install && cd ..
+#
+#    Před instalací musí být povoleno I2C:
+#       sudo raspi-config  -> Interface Options -> I2C -> Enable
+#
+#    Bez hardwaru ponechte v config.py  SIMULATE = True  a tyto
+#    knihovny instalovat nemusíte.
+
+# ── Web dashboard ─────────────────────────────────────────────────────────────
+flask>=3.0
