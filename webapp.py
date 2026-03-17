@@ -58,6 +58,7 @@ procedure = ProcedureStateMachine(rot_motor, vert_motor)
 _cmd_queue: queue.Queue = queue.Queue()
 _state_lock = threading.Lock()
 _current_state: dict[str, Any] = {}
+_mode_error: str = ""          # poslední chybová zpráva při set_mode
 
 # SSE subscribers
 _sse_subscribers: list[queue.Queue] = []
@@ -80,6 +81,7 @@ def _notify_subscribers(state: dict) -> None:
 # ── Control loop (background thread) ─────────────────────────────────────────
 
 def _control_loop() -> None:
+    global _mode_error
     prev_inputs: dict[int, bool] = {ch: False for ch in range(1, 17)}
 
     while True:
@@ -131,12 +133,13 @@ def _control_loop() -> None:
             elif cmd == "set_mode":
                 new_mode = args.get("mode", "simulate")
                 try:
-                    # Zastav motory před přepnutím
                     procedure.cmd_stop()
                     rot_motor.cmd_disable()
                     vert_motor.cmd_disable()
                     hw.set_mode(new_mode)
+                    _mode_error = ""
                 except Exception as exc:
+                    _mode_error = str(exc)
                     print(f"[WEBAPP] set_mode failed: {exc}")
 
         # ── Read hardware inputs ───────────────────────────────────────────────
@@ -172,8 +175,9 @@ def _control_loop() -> None:
         # ── Build shared state snapshot ────────────────────────────────────────
         outputs = {ch: hw.get_output(ch) for ch in range(1, 17)}
         state: dict[str, Any] = {
-            "hw_mode":   hw.mode,
-            "simulate":  hw.mode == "simulate",
+            "hw_mode":    hw.mode,
+            "mode_error": _mode_error,
+            "simulate":   hw.mode == "simulate",
             "procedure": procedure.step.name,
             "rot": {
                 "state":    rot_motor.state.name,

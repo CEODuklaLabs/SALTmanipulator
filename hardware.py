@@ -63,15 +63,23 @@ class HardwareInterface:
         self._lib_out = None
 
     def set_mode(self, mode: str) -> None:
-        """Přepne hardware backend za běhu. Bezpečné volat z control loopy."""
+        """Přepne hardware backend za běhu. Bezpečné volat z control loopy.
+        Při selhání inicializace se automaticky vrátí do simulate módu."""
         if mode not in self.MODES:
             raise ValueError(f"Neznámý mód: {mode!r}. Povolené: {self.MODES}")
         if mode == self._mode:
             return
         self._cleanup_backends()
         self._mode = mode
-        self._init_backends()
-        print(f"[HW] Mód přepnut na: {mode}")
+        try:
+            self._init_backends()
+            print(f"[HW] Mód přepnut na: {mode}")
+        except Exception as exc:
+            print(f"[HW] Inicializace módu '{mode}' selhala: {exc}")
+            print("[HW] Záloha: přepínám zpět na simulate")
+            self._cleanup_backends()
+            self._mode = "simulate"
+            # simulate nemá žádné importy, _init_backends() pro něj nic nedělá
 
     @property
     def mode(self) -> str:

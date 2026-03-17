@@ -104,6 +104,31 @@
   }
   .conn-dot.ok { background: var(--green); }
 
+  /* ── Toast ───────────────────────────────────────────────────────── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1e1e2e;
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+    max-width: 480px;
+    text-align: center;
+    z-index: 999;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
   /* ── Layout ─────────────────────────────────────────────────────────── */
 
   main {
@@ -517,6 +542,8 @@
 
 </main>
 
+<div id="toast"></div>
+
 <script>
 // ── Channel labels ──────────────────────────────────────────────────────────
 
@@ -605,7 +632,19 @@ buildGrid('outputGrid', 16, OUTPUT_LABELS, null);
 
 let isSimulate = false;
 let currentMode = 'simulate';
+let lastModeError = '';
 let simInputs = {};  // ch -> bool (local mirror for optimistic toggle)
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 5000);
+}
 
 // ── Update UI from state ────────────────────────────────────────────────────
 
@@ -621,6 +660,12 @@ function updateUI(s) {
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === currentMode);
   });
+
+  // Chybová zpráva při neúspěšném přepnutí módu
+  if (s.mode_error && s.mode_error !== lastModeError) {
+    showToast('Přepnutí módu selhalo: ' + s.mode_error);
+  }
+  lastModeError = s.mode_error || '';
 
   // Re-attach toggle handlers when simulate
   for (let ch = 1; ch <= 16; ch++) {
