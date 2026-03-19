@@ -34,10 +34,10 @@ class HardwareInterface:
         use_gpio = self._mode in ("gpio", "mixed")
 
         if use_i2c:
-            import lib16inpind   # type: ignore[import]
-            import lib16relind   # type: ignore[import]
-            self._lib_in  = lib16inpind
-            self._lib_out = lib16relind
+            import SM16inpind   # type: ignore[import]
+            import SM16relind   # type: ignore[import]
+            self._lib_in  = SM16inpind
+            self._lib_out = SM16relind
 
         if use_gpio:
             import RPi.GPIO as GPIO  # type: ignore[import]
