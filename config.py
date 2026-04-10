@@ -1,38 +1,3 @@
-# ── Hardware mode ─────────────────────────────────────────────────────────────
-# "simulate" – žádný hardware, vše v paměti (výchozí pro vývoj)
-# "i2c"      – Sequent Microsystems 16DI + 16DO desky přes I²C
-# "gpio"     – přímé GPIO piny Raspberry Pi (BCM číslování)
-# "mixed"    – kombinace: kanály v GPIO_*_PINS jdou přes GPIO,
-#              ostatní kanály jdou přes I²C desky
-HARDWARE_MODE = "simulate"
-
-# Zpětná kompatibilita
-SIMULATE = HARDWARE_MODE == "simulate"
-
-# ── GPIO pin mapping (BCM číslování) ──────────────────────────────────────────
-# Používá se pro HARDWARE_MODE = "gpio" i "mixed".
-# Klíč = logický kanál (CH_* konstanty), hodnota = BCM číslo pinu.
-#
-# V režimu "mixed":
-#   kanály UVEDENÉ zde   → GPIO pin
-#   kanály NEUVEDENÉ zde → I²C deska (INPUT_BOARD1_STACK / OUTPUT_BOARD1_STACK)
-
-GPIO_OUTPUT_PINS: dict = {
-    #  kanál : BCM pin
-}
-GPIO_OUTPUT_PINS: dict = {
-    #  kanál : BCM pin
-    1:   4,   # CH_PULSE_ROT
-    2:  18,   # CH_DIR_ROT
-    3:  15,   # CH_ENABLE_ROT
-    4:  14,   # CH_PULSE_VERT
-    5:   8,   # CH_DIR_VERT
-    6:   7,   # CH_ENABLE_VERT
-}
-
-# Pull-up / pull-down pro vstupní GPIO piny ("up", "down", nebo None)
-GPIO_INPUT_PULL = "up"   # tlačítka a senzory zpravidla na pull-up
-
 # ── I2C board stack addresses (0–7) ──────────────────────────────────────────
 INPUT_BOARD1_STACK  = 0
 OUTPUT_BOARD1_STACK = 1

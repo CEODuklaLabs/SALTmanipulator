@@ -12,7 +12,7 @@ from procedure import ProcedureStateMachine, ProcedureStep
 
 
 def main() -> None:
-    hw = HardwareInterface(INPUT_BOARD_STACK, OUTPUT_BOARD_STACK)
+    hw = HardwareInterface(INPUT_BOARD1_STACK, OUTPUT_BOARD1_STACK, OUTPUT_BOARD2_STACK, INPUT_BOARD2_STACK)
 
     rot_motor = MotorController(
         name               = "ROT",
@@ -42,7 +42,7 @@ def main() -> None:
 
     prev_inputs: dict = {ch: False for ch in range(1, 17)}
 
-    print("SALT Manipulator started. SIMULATE =", SIMULATE)
+    print("SALT Manipulator started (I2C mode).")
     print("Press Ctrl+C to exit.")
 
     try:
@@ -52,7 +52,7 @@ def main() -> None:
             inputs = hw.read_all_inputs()
 
             # -- Priority 1: ESTOP (level-triggered) --------------------------
-            if inputs[CH_ESTOP]:
+            if inputs[CH_STOP_BTN] and procedure.step != ProcedureStep.ESTOP:
                 if procedure.step != ProcedureStep.ESTOP:
                     procedure.cmd_estop()
 
@@ -62,7 +62,7 @@ def main() -> None:
                     procedure.cmd_stop()
 
                 # -- Priority 3: START button (rising edge, IDLE only) --------
-                if (inputs[CH_START_BTN] and not prev_inputs[CH_START_BTN]
+                if (inputs[CH_RUN_BTN] and not prev_inputs[CH_RUN_BTN]
                         and procedure.step == ProcedureStep.IDLE):
                     procedure.cmd_start()
 

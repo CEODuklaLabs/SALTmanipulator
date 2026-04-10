@@ -71,6 +71,14 @@ class ProcedureStateMachine:
             self._vert.cmd_clear_error()
             self._step = ProcedureStep.IDLE
             print("[PROC] RESET -> IDLE")
+    
+    def cmd_initialize(self) -> None:
+        self._rot.cmd_initialize()
+        self._vert.cmd_initialize()
+        self._step = ProcedureStep.IDLE
+        print("[PROC] INITIALIZED -> IDLE")
+
+    
 
     # ── Tick ──────────────────────────────────────────────────────────────────
 
