@@ -1,9 +1,6 @@
 """
 SALT Manipulator – web dashboard
-Run: python webapp.py
-Then open http://localhost:5000 in a browser.
-
-Requires Flask:  pip install flask
+Run: python webapp.py  →  http://localhost:5000
 """
 
 import json
@@ -16,58 +13,98 @@ from flask import Flask, Response, jsonify, render_template, request
 
 import config
 from hardware import HardwareInterface
-from motor import Direction, MotorController
+from motor import ArduinoMotorController, Direction, SerialBridge
 from procedure import ProcedureStateMachine, ProcedureStep
-
-# ── Flask app ─────────────────────────────────────────────────────────────────
+from ups import UPSMonitor
 
 app = Flask(__name__)
 
-# ── Shared control objects ────────────────────────────────────────────────────
+# ── Hardware ──────────────────────────────────────────────────────────────────
 
 hw = HardwareInterface(config.INPUT_BOARD1_STACK, config.OUTPUT_BOARD1_STACK)
+hw.start_input_scan()
 
-rot_motor = MotorController(
+# ── Arduino serial bridge ─────────────────────────────────────────────────────
+
+_bridge = SerialBridge(
+    port          = config.ARDUINO_PORT,
+    baud          = config.ARDUINO_BAUD,
+    ready_timeout = config.ARDUINO_READY_TIMEOUT,
+)
+_bridge.start()
+
+rot_motor = ArduinoMotorController(
     name               = "ROT",
+    axis_char          = "R",
+    bridge             = _bridge,
     hw                 = hw,
-    pulse_ch           = config.CH_PULSE_ROT,
-    dir_ch             = config.CH_DIR_ROT,
-    enable_ch          = config.CH_ENABLE_ROT,
     home_input_ch      = config.CH_HOME_ROT,
-    pulse_hz           = config.ROT_PULSE_HZ,
     home_backoff_steps = config.ROT_HOME_BACKOFF,
     homing_timeout_s   = config.HOMING_TIMEOUT_S,
+    max_speed          = config.ARDUINO_MAX_SPEED,
+    acceleration       = config.ARDUINO_ACCELERATION,
+    home_speed         = config.ARDUINO_HOME_SPEED,
 )
-
-vert_motor = MotorController(
+vert_motor = ArduinoMotorController(
     name               = "VERT",
+    axis_char          = "Z",
+    bridge             = _bridge,
     hw                 = hw,
-    pulse_ch           = config.CH_PULSE_VERT,
-    dir_ch             = config.CH_DIR_VERT,
-    enable_ch          = config.CH_ENABLE_VERT,
     home_input_ch      = config.CH_HOME_VERT,
-    pulse_hz           = config.VERT_PULSE_HZ,
     home_backoff_steps = config.VERT_HOME_BACKOFF,
     homing_timeout_s   = config.HOMING_TIMEOUT_S,
+    max_speed          = config.ARDUINO_MAX_SPEED,
+    acceleration       = config.ARDUINO_ACCELERATION,
+    home_speed         = config.ARDUINO_HOME_SPEED,
 )
 
 procedure = ProcedureStateMachine(rot_motor, vert_motor)
 
-# ── Thread-safe command queue & state ─────────────────────────────────────────
+# ── UPS ───────────────────────────────────────────────────────────────────────
 
-_cmd_queue: queue.Queue = queue.Queue()
-_state_lock = threading.Lock()
+ups = UPSMonitor(config, estop_callback=procedure.cmd_estop)
+ups.start()
+
+# ── SSE / state ───────────────────────────────────────────────────────────────
+
+_cmd_queue: queue.Queue        = queue.Queue()
+_state_lock                    = threading.Lock()
 _current_state: dict[str, Any] = {}
-_mode_error: str = ""          # poslední chybová zpráva při set_mode
-
-# SSE subscribers
 _sse_subscribers: list[queue.Queue] = []
-_sse_lock = threading.Lock()
+_sse_lock                      = threading.Lock()
+
+# Pre-computed str keys to avoid repeated str() calls in the hot loop
+_INPUT_STR_KEYS = {ch: str(ch) for ch in range(1, 25)}
+
+# UPS cache – read from UPS thread every 10 s, no need to re-read every 5 ms
+_ups_cache: dict       = {}
+_ups_cache_lock        = threading.Lock()
+_ups_cache_updated     = threading.Event()
 
 
-def _notify_subscribers(state: dict) -> None:
-    data = "data: " + json.dumps(state) + "\n\n"
+def _ups_cache_updater() -> None:
+    """Separate thread that refreshes the UPS dict at the UPS poll rate."""
+    while True:
+        fresh = ups.get_status()
+        with _ups_cache_lock:
+            _ups_cache.clear()
+            _ups_cache.update(fresh)
+        _ups_cache_updated.set()
+        time.sleep(config.UPS_POLL_INTERVAL_S)
+
+
+threading.Thread(target=_ups_cache_updater, daemon=True, name="ups-cache").start()
+
+
+def _get_ups_snapshot() -> dict:
+    with _ups_cache_lock:
+        return dict(_ups_cache)
+
+
+def _notify_subscribers(data: str) -> None:
     with _sse_lock:
+        if not _sse_subscribers:
+            return
         dead = []
         for q in _sse_subscribers:
             try:
@@ -78,16 +115,28 @@ def _notify_subscribers(state: dict) -> None:
             _sse_subscribers.remove(q)
 
 
-# ── Control loop (background thread) ─────────────────────────────────────────
+def _motor_snapshot(mc: ArduinoMotorController) -> dict:
+    return {
+        "state":    mc.state.name,
+        "position": mc.position,
+        "target":   mc.target,
+        "params": {
+            "max_speed":    mc.max_speed,
+            "acceleration": mc.acceleration,
+            "home_speed":   mc.home_speed,
+        },
+    }
+
+
+# ── Control loop (200 Hz) ─────────────────────────────────────────────────────
 
 def _control_loop() -> None:
-    global _mode_error
-    prev_inputs: dict[int, bool] = {ch: False for ch in range(1, 17)}
+    prev_inputs: dict[int, bool] = {ch: False for ch in range(1, 25)}
 
     while True:
         t_start = time.monotonic()
 
-        # ── Process web commands ───────────────────────────────────────────────
+        # ── Web commands ──────────────────────────────────────────────────────
         while not _cmd_queue.empty():
             try:
                 cmd, args = _cmd_queue.get_nowait()
@@ -97,117 +146,88 @@ def _control_loop() -> None:
             if cmd == "start":
                 if procedure.step == ProcedureStep.IDLE:
                     procedure.cmd_start()
-
             elif cmd == "stop":
                 procedure.cmd_stop()
-
             elif cmd == "estop":
                 procedure.cmd_estop()
-
             elif cmd == "reset":
                 procedure.cmd_reset()
-
             elif cmd == "home":
                 axis = args.get("axis", "both")
                 if axis in ("rot", "both"):
                     rot_motor.cmd_home()
                 if axis in ("vert", "both"):
                     vert_motor.cmd_home()
-
             elif cmd == "jog":
                 if procedure.step == ProcedureStep.IDLE:
                     axis = args.get("axis", "")
-                    fwd = args.get("direction", "fwd") == "fwd"
+                    fwd  = args.get("direction", "fwd") == "fwd"
                     direction = Direction.FORWARD if fwd else Direction.REVERSE
                     if axis == "rot":
                         rot_motor.cmd_jog(direction)
                     elif axis == "vert":
                         vert_motor.cmd_jog(direction)
+            elif cmd == "set_motor_params":
+                axis  = args.get("axis", "")
+                motor = rot_motor if axis == "rot" else (vert_motor if axis == "vert" else None)
+                if motor:
+                    motor.set_params(
+                        max_speed    = args.get("max_speed"),
+                        acceleration = args.get("acceleration"),
+                        home_speed   = args.get("home_speed"),
+                    )
 
-            elif cmd == "sim_input":
-                ch = int(args.get("channel", 0))
-                state = bool(args.get("state", False))
-                if 1 <= ch <= 16:
-                    hw.set_sim_input(ch, state)
-
-            elif cmd == "set_mode":
-                new_mode = args.get("mode", "simulate")
-                try:
-                    procedure.cmd_stop()
-                    rot_motor.cmd_disable()
-                    vert_motor.cmd_disable()
-                    hw.set_mode(new_mode)
-                    _mode_error = ""
-                except Exception as exc:
-                    _mode_error = str(exc)
-                    print(f"[WEBAPP] set_mode failed: {exc}")
-
-        # ── Read hardware inputs ───────────────────────────────────────────────
+        # ── Physical inputs ───────────────────────────────────────────────────
         inputs = hw.read_all_inputs()
 
-        # STOP button (rising edge)
-        if inputs[config.CH_STOP_BTN] and not prev_inputs[config.CH_STOP_BTN]:
+        if inputs.get(config.CH_STOP_BTN) and not prev_inputs.get(config.CH_STOP_BTN):
             procedure.cmd_stop()
 
-        # RUN button (rising edge, IDLE only)
-        if (inputs[config.CH_RUN_BTN] and not prev_inputs[config.CH_RUN_BTN]
+        if (inputs.get(config.CH_RUN_BTN) and not prev_inputs.get(config.CH_RUN_BTN)
                 and procedure.step == ProcedureStep.IDLE):
             procedure.cmd_start()
 
-        # Manual jog (IDLE only)
         if procedure.step == ProcedureStep.IDLE:
-            if inputs[config.CH_JOG_ROT_FWD]:
+            if inputs.get(config.CH_JOG_ROT_FWD):
                 rot_motor.cmd_jog(Direction.FORWARD)
-            elif inputs[config.CH_JOG_ROT_REV]:
+            elif inputs.get(config.CH_JOG_ROT_REV):
                 rot_motor.cmd_jog(Direction.REVERSE)
-            if inputs[config.CH_JOG_VERT_UP]:
+            if inputs.get(config.CH_JOG_VERT_UP):
                 vert_motor.cmd_jog(Direction.FORWARD)
-            elif inputs[config.CH_JOG_VERT_DOWN]:
+            elif inputs.get(config.CH_JOG_VERT_DOWN):
                 vert_motor.cmd_jog(Direction.REVERSE)
 
-        # ── Motor & procedure ticks ────────────────────────────────────────────
+        # ── Motor / procedure tick ────────────────────────────────────────────
         rot_motor.update()
         vert_motor.update()
         procedure.update()
 
         prev_inputs = inputs
 
-        # ── Build shared state snapshot ────────────────────────────────────────
-        outputs = {ch: hw.get_output(ch) for ch in range(1, 17)}
+        # ── State snapshot ────────────────────────────────────────────────────
         state: dict[str, Any] = {
-            "hw_mode":    hw.mode,
-            "mode_error": _mode_error,
-            "simulate":   hw.mode == "simulate",
-            "procedure": procedure.step.name,
-            "rot": {
-                "state":    rot_motor.state.name,
-                "position": rot_motor.position,
-                "target":   rot_motor._target,
-            },
-            "vert": {
-                "state":    vert_motor.state.name,
-                "position": vert_motor.position,
-                "target":   vert_motor._target,
-            },
-            "inputs":  {str(k): v for k, v in inputs.items()},
-            "outputs": {str(k): v for k, v in outputs.items()},
+            "arduino_connected": _bridge.is_ready,
+            "procedure":         procedure.step.name,
+            "rot":               _motor_snapshot(rot_motor),
+            "vert":              _motor_snapshot(vert_motor),
+            "inputs":            {_INPUT_STR_KEYS[k]: v for k, v in inputs.items()},
+            "outputs":           {str(k): v for k, v in hw.get_all_outputs().items()},
+            "ups":               _get_ups_snapshot(),
         }
 
         with _state_lock:
             _current_state.clear()
             _current_state.update(state)
 
-        _notify_subscribers(state)
+        _notify_subscribers("data: " + json.dumps(state) + "\n\n")
 
-        # ── Pace loop ──────────────────────────────────────────────────────────
         elapsed = time.monotonic() - t_start
         sleep_t = config.LOOP_PERIOD - elapsed
         if sleep_t > 0:
             time.sleep(sleep_t)
 
 
-_control_thread = threading.Thread(target=_control_loop, daemon=True)
-_control_thread.start()
+threading.Thread(target=_control_loop, daemon=True, name="control-loop").start()
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -224,7 +244,6 @@ def api_status():
 
 @app.route("/api/events")
 def api_events():
-    """Server-Sent Events stream – real-time updates."""
     q: queue.Queue = queue.Queue(maxsize=20)
     with _sse_lock:
         _sse_subscribers.append(q)
@@ -242,24 +261,20 @@ def api_events():
                     _sse_subscribers.remove(q)
 
     return Response(generate(), mimetype="text/event-stream",
-                    headers={"Cache-Control": "no-cache",
-                             "X-Accel-Buffering": "no"})
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.route("/api/cmd/<command>", methods=["POST"])
 def api_command(command: str):
-    allowed = {"start", "stop", "estop", "reset", "home", "jog",
-               "sim_input", "set_mode"}
+    allowed = {"start", "stop", "estop", "reset", "home", "jog", "set_motor_params"}
     if command not in allowed:
-        return jsonify({"ok": False, "error": "unknown command"}), 400
-    args = request.get_json(silent=True) or {}
-    _cmd_queue.put((command, args))
+        return jsonify({"ok": False, "error": "neznámý příkaz"}), 400
+    _cmd_queue.put((command, request.get_json(silent=True) or {}))
     return jsonify({"ok": True})
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("SALT Manipulator web UI -> http://localhost:5000")
-    print(f"HARDWARE_MODE = {config.HARDWARE_MODE}")
+    print(f"SALT Manipulator → http://localhost:5000  (Arduino: {config.ARDUINO_PORT})")
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)

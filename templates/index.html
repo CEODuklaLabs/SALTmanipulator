@@ -6,184 +6,75 @@
 <title>SALT Manipulator</title>
 <style>
   :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #242736;
-    --border: #2e3248;
-    --text: #e2e8f0;
-    --text-muted: #7480a0;
-    --accent: #6366f1;
-    --accent-hover: #818cf8;
-    --green: #22c55e;
-    --yellow: #eab308;
-    --red: #ef4444;
-    --orange: #f97316;
-    --blue: #3b82f6;
+    --bg:      #0f1117; --surface: #1a1d27; --surface2: #242736;
+    --border:  #2e3248; --text:    #e2e8f0; --muted:    #7480a0;
+    --accent:  #6366f1; --green:   #22c55e; --yellow:   #eab308;
+    --red:     #ef4444; --orange:  #f97316; --blue:     #3b82f6;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    font-size: 14px;
-    min-height: 100vh;
-  }
-
+  /* ── Header ── */
   header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 24px; display: flex; align-items: center; gap: 12px;
   }
-
-  header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.02em; }
-
-  .sim-badge {
-    background: var(--orange);
-    color: #000;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 4px;
-    letter-spacing: 0.05em;
-    display: none;
+  header h1 { font-size: 17px; font-weight: 600; }
+  .badge {
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 4px; letter-spacing: .05em;
   }
-  .sim-badge.visible { display: inline-block; }
-
-  /* ── Mode selector ───────────────────────────────────────────────── */
-  .mode-selector {
-    display: flex;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    gap: 0;
-    margin-left: auto;
-  }
-
-  .mode-btn {
-    background: transparent;
-    color: var(--text-muted);
-    border: none;
-    border-radius: 0;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 6px 14px;
-    cursor: pointer;
-    letter-spacing: 0.03em;
-    transition: background 0.15s, color 0.15s;
-    border-right: 1px solid var(--border);
-  }
-  .mode-btn:last-child { border-right: none; }
-  .mode-btn:hover:not(.active) { background: var(--border); color: var(--text); }
-
-  .mode-btn.active[data-mode="simulate"] { background: var(--orange);  color: #000; }
-  .mode-btn.active[data-mode="i2c"]     { background: var(--blue);    color: #fff; }
-  .mode-btn.active[data-mode="gpio"]    { background: var(--green);   color: #000; }
-  .mode-btn.active[data-mode="mixed"]   { background: var(--accent);  color: #fff; }
-
-  .live-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--red);
-    display: inline-block;
-    margin-right: 4px;
-    animation: blink 1.2s ease-in-out infinite;
-  }
-  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
+  .badge-ok   { background: var(--blue);   color: #fff; }
+  .badge-fail { background: var(--red);    color: #fff; }
   .conn-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    transition: background 0.3s;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); transition: background .3s; margin-left: auto;
   }
   .conn-dot.ok { background: var(--green); }
 
-  /* ── Toast ───────────────────────────────────────────────────────── */
+  /* ── UPS bar ── */
+  #upsBar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 6px 24px; display: flex; align-items: center; gap: 14px; font-size: 12px; flex-wrap: wrap;
+  }
+  .ups-label { color: var(--muted); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+  .bat-wrap  { display: flex; align-items: center; gap: 8px; }
+  .bat-bar   { width: 80px; height: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .bat-fill  { height: 100%; border-radius: 4px; transition: width .5s, background .5s; }
+  .ac-ok     { color: var(--green); font-weight: 600; }
+  .ac-fail   { color: var(--red);   font-weight: 700; }
+  .ups-warn  { color: var(--red); font-weight: 700; animation: blink .8s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  #shutdownBanner {
+    display: none; background: #7f1d1d; border-bottom: 2px solid var(--red);
+    padding: 8px 24px; color: #fecaca; font-weight: 700; font-size: 13px;
+    text-align: center; animation: blink .6s ease-in-out infinite;
+  }
+
+  /* ── Toast ── */
   #toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
+    position: fixed; bottom: 24px; left: 50%;
     transform: translateX(-50%) translateY(20px);
-    background: #1e1e2e;
-    border: 1px solid var(--red);
-    color: var(--red);
-    font-size: 13px;
-    font-weight: 600;
-    padding: 10px 20px;
-    border-radius: 8px;
-    opacity: 0;
-    transition: opacity 0.3s, transform 0.3s;
-    pointer-events: none;
-    max-width: 480px;
-    text-align: center;
-    z-index: 999;
+    background: #1e1e2e; border: 1px solid var(--red); color: var(--red);
+    font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 8px;
+    opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none;
+    max-width: 480px; text-align: center; z-index: 999;
   }
-  #toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  /* ── Layout ─────────────────────────────────────────────────────────── */
+  /* ── Layout ── */
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 24px; max-width: 1280px; margin: 0 auto; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .card-full { grid-column: 1 / -1; }
+  .card-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
 
-  main {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 16px;
-    padding: 20px 24px;
-    max-width: 1280px;
-    margin: 0 auto;
-  }
-
-  @media (max-width: 800px) {
-    main { grid-template-columns: 1fr; }
-  }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 18px;
-  }
-
-  .card-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 14px;
-  }
-
-  /* ── Procedure card (full width) ─────────────────────────────────────── */
-
-  .card-procedure { grid-column: 1 / -1; }
-
-  .proc-status {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .proc-label {
-    font-size: 22px;
-    font-weight: 700;
-  }
-
-  .proc-badge {
-    font-size: 12px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-weight: 600;
-  }
-  .badge-idle     { background: #1e293b; color: var(--text-muted); }
+  /* ── Procedure ── */
+  .proc-status { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .proc-label  { font-size: 22px; font-weight: 700; }
+  .proc-badge  { font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+  .badge-idle     { background: #1e293b; color: var(--muted); }
   .badge-running  { background: #1d4ed8; color: #bfdbfe; }
   .badge-waiting  { background: #78350f; color: #fde68a; }
   .badge-homing   { background: #1e3a5f; color: #93c5fd; }
@@ -191,352 +82,217 @@
   .badge-estop    { background: #7f1d1d; color: #fecaca; }
   .badge-complete { background: #14532d; color: #bbf7d0; }
 
-  /* Step progress timeline */
-  .step-track {
-    display: flex;
-    gap: 0;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scrollbar-width: thin;
-  }
-
-  .step-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex: 1;
-    min-width: 72px;
-    position: relative;
-  }
-
+  .step-track { display: flex; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+  .step-item  { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 72px; position: relative; }
   .step-item:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    top: 11px;
-    left: calc(50% + 12px);
-    right: calc(-50% + 12px);
-    height: 2px;
-    background: var(--border);
-    z-index: 0;
+    content: ''; position: absolute; top: 11px;
+    left: calc(50% + 12px); right: calc(-50% + 12px);
+    height: 2px; background: var(--border); z-index: 0;
   }
-
-  .step-item.done::after   { background: var(--green); }
-  .step-item.active::after { background: var(--border); }
-
+  .step-item.done::after { background: var(--green); }
   .step-dot {
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    background: var(--surface2);
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
-    font-weight: 700;
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border);
+    background: var(--surface2); z-index: 1; display: flex; align-items: center;
+    justify-content: center; font-size: 9px; font-weight: 700;
   }
-
-  .step-item.done   .step-dot { border-color: var(--green); background: var(--green); color: #000; }
+  .step-item.done   .step-dot { border-color: var(--green);  background: var(--green);  color: #000; }
   .step-item.active .step-dot { border-color: var(--accent); background: var(--accent); color: #fff; animation: pulse 1.2s ease-in-out infinite; }
-  .step-item.error  .step-dot { border-color: var(--red); background: var(--red); color: #fff; }
-
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,.6); }
-    50%       { box-shadow: 0 0 0 6px rgba(99,102,241,0); }
-  }
-
-  .step-name {
-    font-size: 9px;
-    color: var(--text-muted);
-    margin-top: 5px;
-    text-align: center;
-    max-width: 68px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .step-item.error  .step-dot { border-color: var(--red);    background: var(--red);    color: #fff; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,.6)} 50%{box-shadow:0 0 0 6px rgba(99,102,241,0)} }
+  .step-name { font-size: 9px; color: var(--muted); margin-top: 5px; text-align: center; max-width: 68px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .step-item.active .step-name { color: var(--text); }
   .step-item.done   .step-name { color: var(--green); }
 
-  /* ── Motor cards ─────────────────────────────────────────────────────── */
-
-  .motor-state {
-    display: inline-block;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 6px;
-    margin-bottom: 14px;
-  }
-  .ms-IDLE    { background: #1e293b; color: var(--text-muted); }
+  /* ── Motor cards ── */
+  .motor-state { display: inline-block; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 6px; margin-bottom: 14px; }
+  .ms-IDLE    { background: #1e293b; color: var(--muted); }
   .ms-HOMING  { background: #1e3a5f; color: #93c5fd; }
   .ms-RUNNING { background: #1d4ed8; color: #bfdbfe; }
   .ms-ERROR   { background: #7f1d1d; color: #fecaca; }
+  .pos-row  { display: flex; gap: 16px; margin-bottom: 16px; }
+  .pos-box  { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .pos-box label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .pos-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .progress-wrap { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 14px; }
+  .progress-bar  { height: 100%; background: var(--accent); border-radius: 4px; transition: width .1s; }
+  .jog-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
-  .pos-row {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
+  /* ── Motor params ── */
+  .params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 600px) { .params-grid { grid-template-columns: 1fr; } }
+  .params-axis-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .param-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .param-row label { flex: 1; font-size: 12px; color: var(--muted); min-width: 140px; }
+  .param-row input[type=number] {
+    width: 100px; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-size: 13px; font-weight: 600; padding: 5px 8px;
+    border-radius: 6px; font-variant-numeric: tabular-nums;
   }
+  .param-row input[type=number]:focus { outline: none; border-color: var(--accent); }
+  .param-row input.dirty { border-color: var(--yellow); }
+  .btn-apply     { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-apply:hover { background: #818cf8; }
+  .btn-apply-all { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 4px; width: 100%; }
+  .btn-apply-all:hover { background: var(--border); }
 
-  .pos-box {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
-  }
-
-  .pos-box label {
-    font-size: 10px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .pos-value {
-    font-size: 26px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-  }
-
-  /* Progress bar */
-  .progress-wrap {
-    background: var(--surface2);
-    border-radius: 4px;
-    height: 6px;
-    overflow: hidden;
-    margin-bottom: 14px;
-  }
-
-  .progress-bar {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 4px;
-    transition: width 0.1s;
-  }
-
-  /* Jog buttons */
-  .jog-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
-  }
-
-  /* ── Control panel (full width) ───────────────────────────────────────── */
-
-  .card-controls { grid-column: 1 / -1; }
-
-  .btn-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  button {
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 9px 20px;
-    border-radius: 7px;
-    border: 1px solid transparent;
-    transition: background 0.15s, opacity 0.15s;
-  }
-
-  button:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  .btn-primary   { background: var(--accent);  color: #fff; border-color: var(--accent); }
-  .btn-primary:not(:disabled):hover { background: var(--accent-hover); }
-  .btn-stop      { background: var(--orange);  color: #fff; border-color: var(--orange); }
+  /* ── Controls ── */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  button { cursor: pointer; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: 7px; border: 1px solid transparent; transition: background .15s, opacity .15s; }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-primary { background: var(--accent);   color: #fff; border-color: var(--accent); }
+  .btn-primary:not(:disabled):hover { background: #818cf8; }
+  .btn-stop    { background: var(--orange);   color: #fff; border-color: var(--orange); }
   .btn-stop:not(:disabled):hover    { background: #fb923c; }
-  .btn-estop     { background: var(--red);     color: #fff; border-color: var(--red); min-width: 120px; }
+  .btn-estop   { background: var(--red);      color: #fff; border-color: var(--red); min-width: 120px; }
   .btn-estop:not(:disabled):hover   { background: #f87171; }
-  .btn-reset     { background: var(--surface2); color: var(--text); border-color: var(--border); }
+  .btn-reset   { background: var(--surface2); color: var(--text); border-color: var(--border); }
   .btn-reset:not(:disabled):hover   { background: var(--border); }
-  .btn-jog       { background: var(--surface2); color: var(--text); border-color: var(--border); padding: 7px 10px; font-size: 18px; }
+  .btn-jog     { background: var(--surface2); color: var(--text); border-color: var(--border); padding: 7px 10px; font-size: 18px; }
   .btn-jog:not(:disabled):hover     { background: var(--border); }
 
-  /* ── I/O panels ───────────────────────────────────────────────────────── */
-
-  .io-grid {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 6px;
-  }
-
+  /* ── I/O grid ── */
+  .io-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
   @media (max-width: 600px) { .io-grid { grid-template-columns: repeat(4, 1fr); } }
-
-  .io-ch {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 4px;
-    text-align: center;
-    cursor: default;
-  }
-
-  .io-ch.active {
-    background: #1d4ed8;
-    border-color: #3b82f6;
-  }
-
-  .io-ch.sim-toggle { cursor: pointer; }
-  .io-ch.sim-toggle:hover { border-color: var(--accent); }
-
-  .io-ch .ch-num {
-    font-size: 9px;
-    color: var(--text-muted);
-    display: block;
-    margin-bottom: 2px;
-  }
-
-  .io-ch .ch-led {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: var(--border);
-    margin: 0 auto 3px;
-    transition: background 0.1s;
-  }
-
+  .io-ch { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 4px; text-align: center; }
+  .io-ch.active { background: #1d4ed8; border-color: #3b82f6; }
+  .ch-num   { font-size: 9px; color: var(--muted); display: block; margin-bottom: 2px; }
+  .ch-led   { width: 10px; height: 10px; border-radius: 50%; background: var(--border); margin: 0 auto 3px; transition: background .1s; }
   .io-ch.active .ch-led { background: #60a5fa; }
-
-  .io-ch .ch-label {
-    font-size: 8px;
-    color: var(--text-muted);
-    display: block;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 56px;
-    margin: 0 auto;
-  }
-
-  .sim-hint {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-    font-style: italic;
-  }
+  .ch-label { font-size: 8px; color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; margin: 0 auto; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>SALT Manipulator</h1>
-  <span class="sim-badge" id="simBadge">SIMULACE</span>
-
-  <div class="mode-selector" id="modeSelector">
-    <button class="mode-btn active" data-mode="simulate" onclick="setMode('simulate')">Simulace</button>
-    <button class="mode-btn"        data-mode="i2c"      onclick="setMode('i2c')">I2C</button>
-    <button class="mode-btn"        data-mode="gpio"     onclick="setMode('gpio')">GPIO</button>
-    <button class="mode-btn"        data-mode="mixed"    onclick="setMode('mixed')">Mixed</button>
-  </div>
-
-  <span class="conn-dot" id="connDot" title="Připojení"></span>
+  <span class="badge badge-ok" id="arduinoBadge">ARDUINO</span>
+  <span class="conn-dot" id="connDot" title="SSE připojení"></span>
 </header>
+
+<div id="upsBar">
+  <span class="ups-label">UPS</span>
+  <span id="upsAc" class="ac-ok">–</span>
+  <div class="bat-wrap">
+    <div class="bat-bar"><div class="bat-fill" id="batFill" style="width:0%"></div></div>
+    <span id="batPct">–</span>
+  </div>
+  <span id="upsVolt" style="color:var(--muted)"></span>
+  <span id="upsCharge" style="color:var(--yellow);display:none">⚡ Nabíjí</span>
+  <span id="upsWarn"   class="ups-warn" style="display:none">⚠ NÍZKÁ BATERIE</span>
+</div>
+<div id="shutdownBanner">⚡ NOUZOVÉ VYPNUTÍ ZA <span id="upsCountdown">–</span> s</div>
 
 <main>
 
-  <!-- ── Procedure ─────────────────────────────────────────────────── -->
-  <div class="card card-procedure">
+  <!-- Procedure -->
+  <div class="card card-full">
     <div class="card-title">Průběh procedury</div>
-
     <div class="proc-status">
       <div class="proc-label" id="procLabel">–</div>
       <span class="proc-badge badge-idle" id="procBadge">IDLE</span>
     </div>
-
     <div class="step-track" id="stepTrack"></div>
   </div>
 
-  <!-- ── ROT motor ─────────────────────────────────────────────────── -->
+  <!-- ROT motor -->
   <div class="card">
     <div class="card-title">Motor – Rotace</div>
-
-    <span class="motor-state ms-IDLE" id="rotStateLabel">IDLE</span>
-
+    <span class="motor-state ms-IDLE" id="rotState">IDLE</span>
     <div class="pos-row">
-      <div class="pos-box">
-        <label>Pozice (kroky)</label>
-        <div class="pos-value" id="rotPos">0</div>
-      </div>
-      <div class="pos-box">
-        <label>Cíl (kroky)</label>
-        <div class="pos-value" id="rotTarget">0</div>
-      </div>
+      <div class="pos-box"><label>Pozice</label><div class="pos-value" id="rotPos">0</div></div>
+      <div class="pos-box"><label>Cíl</label><div class="pos-value" id="rotTarget">0</div></div>
     </div>
-
-    <div class="progress-wrap">
-      <div class="progress-bar" id="rotProgress" style="width:0%"></div>
-    </div>
-
+    <div class="progress-wrap"><div class="progress-bar" id="rotProg" style="width:0%"></div></div>
     <div class="card-title" style="margin-top:8px">Ruční pojezd</div>
     <div class="jog-grid">
-      <button class="btn-jog" id="rotFwdBtn" onclick="jog('rot','fwd')">◀ FWD</button>
-      <button class="btn-jog" id="rotRevBtn" onclick="jog('rot','rev')">REV ▶</button>
+      <button class="btn-jog" id="rotFwd" onclick="jog('rot','fwd')">◀ FWD</button>
+      <button class="btn-jog" id="rotRev" onclick="jog('rot','rev')">REV ▶</button>
     </div>
   </div>
 
-  <!-- ── VERT motor ─────────────────────────────────────────────────── -->
+  <!-- VERT motor -->
   <div class="card">
     <div class="card-title">Motor – Vertikála</div>
-
-    <span class="motor-state ms-IDLE" id="vertStateLabel">IDLE</span>
-
+    <span class="motor-state ms-IDLE" id="vertState">IDLE</span>
     <div class="pos-row">
-      <div class="pos-box">
-        <label>Pozice (kroky)</label>
-        <div class="pos-value" id="vertPos">0</div>
-      </div>
-      <div class="pos-box">
-        <label>Cíl (kroky)</label>
-        <div class="pos-value" id="vertTarget">0</div>
-      </div>
+      <div class="pos-box"><label>Pozice</label><div class="pos-value" id="vertPos">0</div></div>
+      <div class="pos-box"><label>Cíl</label><div class="pos-value" id="vertTarget">0</div></div>
     </div>
-
-    <div class="progress-wrap">
-      <div class="progress-bar" id="vertProgress" style="width:0%"></div>
-    </div>
-
+    <div class="progress-wrap"><div class="progress-bar" id="vertProg" style="width:0%"></div></div>
     <div class="card-title" style="margin-top:8px">Ruční pojezd</div>
     <div class="jog-grid">
-      <button class="btn-jog" id="vertUpBtn" onclick="jog('vert','fwd')">▲ UP</button>
-      <button class="btn-jog" id="vertDownBtn" onclick="jog('vert','rev')">▼ DOWN</button>
+      <button class="btn-jog" id="vertUp"   onclick="jog('vert','fwd')">▲ UP</button>
+      <button class="btn-jog" id="vertDown" onclick="jog('vert','rev')">▼ DOWN</button>
     </div>
   </div>
 
-  <!-- ── Controls ──────────────────────────────────────────────────── -->
-  <div class="card card-controls">
+  <!-- Motor params -->
+  <div class="card card-full">
+    <div class="card-title">Parametry motorů</div>
+    <div class="params-grid">
+      <div>
+        <div class="params-axis-title">Rotace (R)</div>
+        <div class="param-row">
+          <label>Max rychlost (krok/s)</label>
+          <input type="number" id="rotMaxSpeed" min="100" max="50000" step="100" oninput="this.classList.add('dirty')">
+          <button class="btn-apply" onclick="applyParam('rot','max_speed','rotMaxSpeed')">Použít</button>
+        </div>
+        <div class="param-row">
+          <label>Akcelerace (krok/s²)</label>
+          <input type="number" id="rotAccel" min="100" max="50000" step="100" oninput="this.classList.add('dirty')">
+          <button class="btn-apply" onclick="applyParam('rot','acceleration','rotAccel')">Použít</button>
+        </div>
+        <div class="param-row">
+          <label>Homing rychlost (krok/s)</label>
+          <input type="number" id="rotHomeSpeed" min="50" max="5000" step="50" oninput="this.classList.add('dirty')">
+          <button class="btn-apply" onclick="applyParam('rot','home_speed','rotHomeSpeed')">Použít</button>
+        </div>
+        <button class="btn-apply-all" onclick="applyAll('rot')">Použít vše – Rotace</button>
+      </div>
+      <div>
+        <div class="params-axis-title">Vertikála (Z)</div>
+        <div class="param-row">
+          <label>Max rychlost (krok/s)</label>
+          <input type="number" id="vertMaxSpeed" min="100" max="50000" step="100" oninput="this.classList.add('dirty')">
+          <button class="btn-apply" onclick="applyParam('vert','max_speed','vertMaxSpeed')">Použít</button>
+        </div>
+        <div class="param-row">
+          <label>Akcelerace (krok/s²)</label>
+          <input type="number" id="vertAccel" min="100" max="50000" step="100" oninput="this.classList.add('dirty')">
+          <button class="btn-apply" onclick="applyParam('vert','acceleration','vertAccel')">Použít</button>
+        </div>
+        <div class="param-row">
+          <label>Homing rychlost (krok/s)</label>
+          <input type="number" id="vertHomeSpeed" min="50" max="5000" step="50" oninput="this.classList.add('dirty')">
+          <button class="btn-apply" onclick="applyParam('vert','home_speed','vertHomeSpeed')">Použít</button>
+        </div>
+        <button class="btn-apply-all" onclick="applyAll('vert')">Použít vše – Vertikála</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card card-full">
     <div class="card-title">Ovládání</div>
     <div class="btn-row">
-      <button class="btn-primary" id="btnStart" onclick="sendCmd('start')">▶ START</button>
-      <button class="btn-stop"    id="btnStop"  onclick="sendCmd('stop')">⏹ STOP</button>
-      <button class="btn-reset"   id="btnReset" onclick="sendCmd('reset')">↺ RESET</button>
-      <button class="btn-reset"   id="btnHomeRot"  onclick="sendCmd('home',{axis:'rot'})">⌂ Home ROT</button>
-      <button class="btn-reset"   id="btnHomeVert" onclick="sendCmd('home',{axis:'vert'})">⌂ Home VERT</button>
-      <button class="btn-estop"   id="btnEstop" onclick="sendCmd('estop')">⛔ E-STOP</button>
+      <button class="btn-primary" id="btnStart"    onclick="cmd('start')">▶ START</button>
+      <button class="btn-stop"    id="btnStop"     onclick="cmd('stop')">⏹ STOP</button>
+      <button class="btn-reset"   id="btnReset"    onclick="cmd('reset')">↺ RESET</button>
+      <button class="btn-reset"   id="btnHomeRot"  onclick="cmd('home',{axis:'rot'})">⌂ Home ROT</button>
+      <button class="btn-reset"   id="btnHomeVert" onclick="cmd('home',{axis:'vert'})">⌂ Home VERT</button>
+      <button class="btn-estop"   id="btnEstop"    onclick="cmd('estop')">⛔ E-STOP</button>
     </div>
   </div>
 
-  <!-- ── Inputs ─────────────────────────────────────────────────────── -->
+  <!-- Inputs -->
   <div class="card">
     <div class="card-title">Vstupy (16DI)</div>
-    <div id="simHintInputs" class="sim-hint" style="display:none">
-      Kliknutím na kanál přepnete vstup.
-    </div>
     <div class="io-grid" id="inputGrid"></div>
   </div>
 
-  <!-- ── Outputs ───────────────────────────────────────────────────── -->
+  <!-- Outputs -->
   <div class="card">
     <div class="card-title">Výstupy (16DO)</div>
-    <div id="simHintOutputs" class="sim-hint" style="display:none">
-      Kliknutím na kanál přepnete výstup.
-    </div>
     <div class="io-grid" id="outputGrid"></div>
   </div>
 
@@ -545,300 +301,210 @@
 <div id="toast"></div>
 
 <script>
-// ── Channel labels ──────────────────────────────────────────────────────────
-
 const INPUT_LABELS = {
-  1: 'RUN',
-  2: 'STOP',
-  3: 'SEL1',
-  4: 'SEL2',
-  5: 'SEL3',
-  6: 'SEL4',
-  7: 'SEL5',
-  8: 'SEL6',
-  9: 'JOG R+',
-  10: 'JOG R-',
-  11: 'JOG V+',
-  12: 'JOG V-',
-  13: 'HOME ROT',
-  14: 'HOME VERT',
+  1:'RUN', 2:'STOP', 6:'JOG R+', 7:'JOG R-', 8:'JOG V+', 9:'JOG V-',
+  10:'HOME ROT', 11:'HOME VERT'
 };
-
-const OUTPUT_LABELS = {
-  1: 'RUN LED',
-  2: 'STOP LED',
-  3: 'SEL1 LED',
-  4: 'SEL2 LED',
-  5: 'SEL3 LED',
-  6: 'SEL4 LED',
-  7: 'SEL5 LED',
-  8: 'SEL6 LED',
-  9: 'JOG R+ LED',
-  10: 'JOG R- LED',
-  11: 'JOG V+ LED',
-  12: 'JOG V- LED'
-};
-
-// ── Procedure steps (ordered for timeline) ─────────────────────────────────
+const OUTPUT_LABELS = { 1:'RUN LED', 2:'STOP LED', 3:'ESTOP LED' };
 
 const PROC_STEPS = [
-  'IDLE', 'HOMING', 'MOVE_ROT_1', 'MOVE_VERT_1', 'WAIT_1',
-  'MOVE_VERT_2', 'MOVE_ROT_2', 'MOVE_VERT_3', 'WAIT_2',
-  'MOVE_VERT_4', 'HOMING_FINAL', 'COMPLETE',
+  'IDLE','HOMING','MOVE_ROT_1','MOVE_VERT_1','WAIT_1',
+  'MOVE_VERT_2','MOVE_ROT_2','MOVE_VERT_3','WAIT_2',
+  'MOVE_VERT_4','HOMING_FINAL','COMPLETE'
 ];
+const TERMINAL = new Set(['STOPPED','ESTOP']);
 
-const TERMINAL_STEPS = new Set(['STOPPED', 'ESTOP']);
-
-// ── Build static grids ──────────────────────────────────────────────────────
-
-function buildGrid(containerId, count, labels, toggleFn) {
-  const grid = document.getElementById(containerId);
-  grid.innerHTML = '';
+// Build grids
+function buildGrid(id, count, labels) {
+  const g = document.getElementById(id);
   for (let ch = 1; ch <= count; ch++) {
-    const div = document.createElement('div');
-    div.className = 'io-ch' + (toggleFn ? ' sim-toggle' : '');
-    div.id = `${containerId}-ch${ch}`;
-    div.title = labels[ch] || '';
-    if (toggleFn) div.onclick = () => toggleFn(ch);
-    div.innerHTML = `
-      <span class="ch-num">${ch}</span>
-      <div class="ch-led"></div>
-      <span class="ch-label">${labels[ch] || ''}</span>
-    `;
-    grid.appendChild(div);
+    const d = document.createElement('div');
+    d.className = 'io-ch'; d.id = `${id}-${ch}`; d.title = labels[ch] || '';
+    d.innerHTML = `<span class="ch-num">${ch}</span><div class="ch-led"></div><span class="ch-label">${labels[ch]||''}</span>`;
+    g.appendChild(d);
+  }
+}
+function buildSteps() {
+  const t = document.getElementById('stepTrack');
+  PROC_STEPS.forEach(n => {
+    const d = document.createElement('div');
+    d.className = 'step-item'; d.id = `step-${n}`;
+    d.innerHTML = `<div class="step-dot">✓</div><div class="step-name">${n.replace(/_/g,' ')}</div>`;
+    t.appendChild(d);
+  });
+}
+buildSteps();
+buildGrid('inputGrid',  16, INPUT_LABELS);
+buildGrid('outputGrid', 16, OUTPUT_LABELS);
+
+// Toast
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+// Fill param input only if user hasn't edited it
+function fillParam(id, val) {
+  const el = document.getElementById(id);
+  if (el && !el.classList.contains('dirty')) el.value = val;
+}
+
+// UPS
+function updateUPS(u) {
+  if (!u?.available) {
+    document.getElementById('upsAc').textContent = 'nedostupné';
+    document.getElementById('upsAc').className = '';
+    document.getElementById('batPct').textContent = '';
+    document.getElementById('upsVolt').textContent = '';
+    ['upsCharge','upsWarn','shutdownBanner'].forEach(id => document.getElementById(id).style.display = 'none');
+    return;
+  }
+  const ac = document.getElementById('upsAc');
+  ac.textContent = u.ac_present ? '⚡ AC' : '🔋 Baterie';
+  ac.className = u.ac_present ? 'ac-ok' : 'ac-fail';
+
+  const pct = Math.max(0, Math.min(100, u.capacity));
+  const fill = document.getElementById('batFill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--yellow)' : 'var(--red)';
+  document.getElementById('batPct').textContent = pct.toFixed(0) + '%';
+  document.getElementById('upsVolt').textContent = u.voltage > 0 ? u.voltage.toFixed(3) + ' V' : '';
+  document.getElementById('upsCharge').style.display = u.charging ? '' : 'none';
+  document.getElementById('upsWarn').style.display = (u.warning && !u.shutdown_in) ? '' : 'none';
+
+  const banner = document.getElementById('shutdownBanner');
+  if (u.shutdown_in !== null && u.shutdown_in !== undefined) {
+    banner.style.display = '';
+    document.getElementById('upsCountdown').textContent = Math.ceil(u.shutdown_in);
+  } else {
+    banner.style.display = 'none';
   }
 }
 
-function buildStepTrack() {
-  const track = document.getElementById('stepTrack');
-  track.innerHTML = '';
-  PROC_STEPS.forEach(name => {
-    const div = document.createElement('div');
-    div.className = 'step-item';
-    div.id = `step-${name}`;
-    div.innerHTML = `
-      <div class="step-dot">✓</div>
-      <div class="step-name">${name.replace(/_/g,' ')}</div>
-    `;
-    track.appendChild(div);
-  });
-}
-
-buildStepTrack();
-buildGrid('inputGrid',  16, INPUT_LABELS,  null);  // toggles enabled after first status
-buildGrid('outputGrid', 16, OUTPUT_LABELS, null);
-
-// ── State ───────────────────────────────────────────────────────────────────
-
-let isSimulate = false;
-let currentMode = 'simulate';
-let lastModeError = '';
-let simInputs = {};  // ch -> bool (local mirror for optimistic toggle)
-
-// ── Toast ─────────────────────────────────────────────────────────────────
-
-let toastTimer = null;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 5000);
-}
-
-// ── Update UI from state ────────────────────────────────────────────────────
-
+// Main UI update
 function updateUI(s) {
-  isSimulate = s.simulate;
-  currentMode = s.hw_mode || 'simulate';
-
-  // Sim badge
-  document.getElementById('simBadge').classList.toggle('visible', isSimulate);
-  document.getElementById('simHintInputs').style.display = isSimulate ? '' : 'none';
-
-  // Mode selector – zvýrazni aktivní tlačítko
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.mode === currentMode);
-  });
-
-  // Chybová zpráva při neúspěšném přepnutí módu
-  if (s.mode_error && s.mode_error !== lastModeError) {
-    showToast('Přepnutí módu selhalo: ' + s.mode_error);
-  }
-  lastModeError = s.mode_error || '';
-
-  // Re-attach toggle handlers when simulate
-  for (let ch = 1; ch <= 16; ch++) {
-    const el = document.getElementById(`inputGrid-ch${ch}`);
-    if (!el) continue;
-    if (isSimulate) {
-      el.classList.add('sim-toggle');
-      el.onclick = () => toggleSimInput(ch);
-    } else {
-      el.classList.remove('sim-toggle');
-      el.onclick = null;
-    }
-  }
+  // Arduino connection badge
+  const ab = document.getElementById('arduinoBadge');
+  ab.textContent = s.arduino_connected ? 'ARDUINO ●' : 'ARDUINO ○';
+  ab.className = 'badge ' + (s.arduino_connected ? 'badge-ok' : 'badge-fail');
 
   // Procedure
   const step = s.procedure;
-  document.getElementById('procLabel').textContent = step.replace(/_/g, ' ');
+  document.getElementById('procLabel').textContent = step.replace(/_/g,' ');
   const badge = document.getElementById('procBadge');
-  badge.textContent = step;
-  badge.className = 'proc-badge ' + stepBadgeClass(step);
+  badge.textContent = step; badge.className = 'proc-badge ' + stepClass(step);
 
-  // Step track
   const idx = PROC_STEPS.indexOf(step);
-  PROC_STEPS.forEach((name, i) => {
-    const el = document.getElementById(`step-${name}`);
+  PROC_STEPS.forEach((n, i) => {
+    const el = document.getElementById(`step-${n}`);
     if (!el) return;
     el.className = 'step-item';
-    if (TERMINAL_STEPS.has(step)) {
-      // highlight nothing, all dim
-    } else if (i < idx) {
-      el.classList.add('done');
-    } else if (i === idx) {
-      el.classList.add('active');
+    if (!TERMINAL.has(step)) {
+      if (i < idx)  el.classList.add('done');
+      if (i === idx) el.classList.add('active');
     }
     if (step === 'ESTOP') el.classList.add('error');
   });
 
-  // Buttons enabled state
-  const procIdle   = step === 'IDLE';
-  const procRunning = !procIdle && !TERMINAL_STEPS.has(step) && step !== 'COMPLETE';
-  const canReset   = TERMINAL_STEPS.has(step);
-  document.getElementById('btnStart').disabled    = !procIdle;
-  document.getElementById('btnStop').disabled     = !procRunning;
+  // Buttons
+  const idle = step === 'IDLE';
+  const running = !idle && !TERMINAL.has(step) && step !== 'COMPLETE';
+  const canReset = TERMINAL.has(step) || step === 'COMPLETE';
+  document.getElementById('btnStart').disabled    = !idle;
+  document.getElementById('btnStop').disabled     = !running;
   document.getElementById('btnReset').disabled    = !canReset;
-  document.getElementById('btnHomeRot').disabled  = !procIdle;
-  document.getElementById('btnHomeVert').disabled = !procIdle;
+  document.getElementById('btnHomeRot').disabled  = !idle;
+  document.getElementById('btnHomeVert').disabled = !idle;
+  document.getElementById('rotFwd').disabled  = !(idle && s.rot.state  === 'IDLE');
+  document.getElementById('rotRev').disabled  = !(idle && s.rot.state  === 'IDLE');
+  document.getElementById('vertUp').disabled  = !(idle && s.vert.state === 'IDLE');
+  document.getElementById('vertDown').disabled = !(idle && s.vert.state === 'IDLE');
 
-  const rotJogOk  = procIdle && s.rot.state === 'IDLE';
-  const vertJogOk = procIdle && s.vert.state === 'IDLE';
-  document.getElementById('rotFwdBtn').disabled   = !rotJogOk;
-  document.getElementById('rotRevBtn').disabled   = !rotJogOk;
-  document.getElementById('vertUpBtn').disabled   = !vertJogOk;
-  document.getElementById('vertDownBtn').disabled = !vertJogOk;
-
-  // ROT motor
-  updateMotor('rot', s.rot);
+  updateMotor('rot',  s.rot);
   updateMotor('vert', s.vert);
 
-  // I/O grids
-  for (let ch = 1; ch <= 16; ch++) {
-    const active = !!s.inputs[String(ch)];
-    const el = document.getElementById(`inputGrid-ch${ch}`);
-    if (el) el.classList.toggle('active', active);
+  // Params
+  if (s.rot.params)  { fillParam('rotMaxSpeed',  s.rot.params.max_speed); fillParam('rotAccel',  s.rot.params.acceleration); fillParam('rotHomeSpeed',  s.rot.params.home_speed); }
+  if (s.vert.params) { fillParam('vertMaxSpeed', s.vert.params.max_speed); fillParam('vertAccel', s.vert.params.acceleration); fillParam('vertHomeSpeed', s.vert.params.home_speed); }
 
-    const oActive = !!s.outputs[String(ch)];
-    const oel = document.getElementById(`outputGrid-ch${ch}`);
-    if (oel) oel.classList.toggle('active', oActive);
+  // I/O
+  for (let ch = 1; ch <= 16; ch++) {
+    document.getElementById(`inputGrid-${ch}`)?.classList.toggle('active',  !!s.inputs[ch]);
+    document.getElementById(`outputGrid-${ch}`)?.classList.toggle('active', !!s.outputs[ch]);
   }
+
+  updateUPS(s.ups);
 }
 
 function updateMotor(axis, m) {
-  const stateEl   = document.getElementById(`${axis}StateLabel`);
-  const posEl     = document.getElementById(`${axis}Pos`);
-  const targetEl  = document.getElementById(`${axis}Target`);
-  const progressEl = document.getElementById(`${axis}Progress`);
-
-  stateEl.textContent = m.state;
-  stateEl.className   = `motor-state ms-${m.state}`;
-  posEl.textContent   = m.position;
-  targetEl.textContent = m.target;
-
-  // progress: 0-100% between 0 and target (rough visual only)
+  document.getElementById(`${axis}State`).textContent  = m.state;
+  document.getElementById(`${axis}State`).className    = `motor-state ms-${m.state}`;
+  document.getElementById(`${axis}Pos`).textContent    = m.position;
+  document.getElementById(`${axis}Target`).textContent = m.target;
   let pct = 0;
-  if (m.target !== 0 && m.state === 'RUNNING') {
-    pct = Math.min(100, Math.round(Math.abs(m.position) / Math.abs(m.target) * 100));
-  } else if (m.state === 'IDLE' && m.target !== 0 && m.position === m.target) {
-    pct = 100;
-  }
-  progressEl.style.width = pct + '%';
+  if (m.target && m.state === 'RUNNING') pct = Math.min(100, Math.round(Math.abs(m.position) / Math.abs(m.target) * 100));
+  else if (m.state === 'IDLE' && m.target && m.position === m.target) pct = 100;
+  document.getElementById(`${axis}Prog`).style.width = pct + '%';
 }
 
-function stepBadgeClass(step) {
-  if (step === 'IDLE')     return 'badge-idle';
-  if (step === 'STOPPED')  return 'badge-stopped';
-  if (step === 'ESTOP')    return 'badge-estop';
-  if (step === 'COMPLETE') return 'badge-complete';
-  if (step.startsWith('WAIT')) return 'badge-waiting';
-  if (step.includes('HOMING')) return 'badge-homing';
+function stepClass(step) {
+  if (step === 'IDLE')          return 'badge-idle';
+  if (step === 'STOPPED')       return 'badge-stopped';
+  if (step === 'ESTOP')         return 'badge-estop';
+  if (step === 'COMPLETE')      return 'badge-complete';
+  if (step.startsWith('WAIT'))  return 'badge-waiting';
+  if (step.includes('HOMING'))  return 'badge-homing';
   return 'badge-running';
 }
 
-// ── Commands ────────────────────────────────────────────────────────────────
-
-async function sendCmd(cmd, args = {}) {
+// Commands
+async function cmd(command, args = {}) {
   try {
-    await fetch(`/api/cmd/${cmd}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(args),
+    await fetch(`/api/cmd/${command}`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(args),
     });
-  } catch(e) {
-    console.error('sendCmd failed', e);
+  } catch(e) { toast('Chyba: ' + e.message); }
+}
+function jog(axis, direction) { cmd('jog', {axis, direction}); }
+
+// Motor params
+function applyParam(axis, key, inputId) {
+  const el = document.getElementById(inputId);
+  const v = parseFloat(el?.value);
+  if (!v || v <= 0) { toast('Neplatná hodnota'); return; }
+  el.classList.remove('dirty');
+  cmd('set_motor_params', {axis, [key]: v});
+}
+function applyAll(axis) {
+  const map = axis === 'rot'
+    ? {max_speed:'rotMaxSpeed', acceleration:'rotAccel', home_speed:'rotHomeSpeed'}
+    : {max_speed:'vertMaxSpeed', acceleration:'vertAccel', home_speed:'vertHomeSpeed'};
+  const args = {axis};
+  for (const [key, id] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    const v = parseFloat(el?.value);
+    if (v > 0) { args[key] = v; el.classList.remove('dirty'); }
   }
+  cmd('set_motor_params', args);
 }
 
-function jog(axis, direction) {
-  sendCmd('jog', {axis, direction});
-}
-
-function setMode(mode) {
-  if (mode === currentMode) return;
-  if (mode !== 'simulate') {
-    const ok = confirm(
-      `Přepnout na mód "${mode.toUpperCase()}"?\n\n` +
-      `Aplikace se připojí k reálnému hardwaru.\n` +
-      `Motory budou zastaveny.`
-    );
-    if (!ok) return;
-  }
-  sendCmd('set_mode', {mode});
-}
-
-function toggleSimInput(ch) {
-  if (!isSimulate) return;
-  // optimistic local toggle
-  simInputs[ch] = !simInputs[ch];
-  const el = document.getElementById(`inputGrid-ch${ch}`);
-  if (el) el.classList.toggle('active', simInputs[ch]);
-  sendCmd('sim_input', {channel: ch, state: simInputs[ch]});
-}
-
-// ── SSE connection ───────────────────────────────────────────────────────────
-
-let retryTimeout = null;
-
+// SSE
 function connectSSE() {
   const es = new EventSource('/api/events');
   const dot = document.getElementById('connDot');
-
   es.onmessage = e => {
     dot.classList.add('ok');
-    try {
-      const state = JSON.parse(e.data);
-      updateUI(state);
-      // sync sim input mirror
-      if (state.inputs) {
-        for (const [k, v] of Object.entries(state.inputs)) {
-          simInputs[Number(k)] = v;
-        }
-      }
-    } catch(err) {
-      console.error('parse error', err);
-    }
+    try { updateUI(JSON.parse(e.data)); } catch(err) { console.error(err); }
   };
-
   es.onerror = () => {
     dot.classList.remove('ok');
     es.close();
-    if (retryTimeout) clearTimeout(retryTimeout);
-    retryTimeout = setTimeout(connectSSE, 2000);
+    setTimeout(connectSSE, 2000);
   };
 }
-
 connectSSE();
 </script>
 </body>

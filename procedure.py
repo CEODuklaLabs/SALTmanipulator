@@ -1,38 +1,42 @@
 import time
 from enum import Enum, auto
+from typing import TYPE_CHECKING
 
 from config import (
     ROT_POS_1, ROT_POS_2,
     VERT_POS_1, VERT_POS_2, VERT_POS_3, VERT_POS_4,
     WAIT_TIME_1, WAIT_TIME_2,
 )
-from motor import MotorController
+
+if TYPE_CHECKING:
+    from motor import ArduinoMotorController
 
 
 class ProcedureStep(Enum):
-    IDLE          = auto()
-    HOMING        = auto()
-    MOVE_ROT_1    = auto()
-    MOVE_VERT_1   = auto()
-    WAIT_1        = auto()
-    MOVE_VERT_2   = auto()
-    MOVE_ROT_2    = auto()
-    MOVE_VERT_3   = auto()
-    WAIT_2        = auto()
-    MOVE_VERT_4   = auto()
-    HOMING_FINAL  = auto()
-    COMPLETE      = auto()
-    STOPPED       = auto()
-    ESTOP         = auto()
+    IDLE         = auto()
+    HOMING       = auto()
+    MOVE_ROT_1   = auto()
+    MOVE_VERT_1  = auto()
+    WAIT_1       = auto()
+    MOVE_VERT_2  = auto()
+    MOVE_ROT_2   = auto()
+    MOVE_VERT_3  = auto()
+    WAIT_2       = auto()
+    MOVE_VERT_4  = auto()
+    HOMING_FINAL = auto()
+    COMPLETE     = auto()
+    STOPPED      = auto()
+    ESTOP        = auto()
 
 
 class ProcedureStateMachine:
-    """
-    Global sequence orchestrator.
-    Issues commands to MotorController instances; never generates pulses itself.
-    """
+    """Sekvenční řízení procedury přes dva ArduinoMotorController."""
 
-    def __init__(self, rot_motor: MotorController, vert_motor: MotorController):
+    def __init__(
+        self,
+        rot_motor:  "ArduinoMotorController",
+        vert_motor: "ArduinoMotorController",
+    ):
         self._rot        = rot_motor
         self._vert       = vert_motor
         self._step       = ProcedureStep.IDLE
@@ -56,13 +60,11 @@ class ProcedureStateMachine:
             self._rot.cmd_stop()
             self._vert.cmd_stop()
             self._step = ProcedureStep.STOPPED
-            print("[PROC] STOPPED")
 
     def cmd_estop(self) -> None:
         self._rot.cmd_estop()
         self._vert.cmd_estop()
         self._step = ProcedureStep.ESTOP
-        print("[PROC] ESTOP")
 
     def cmd_reset(self) -> None:
         if self._step in (ProcedureStep.STOPPED, ProcedureStep.COMPLETE,
@@ -70,15 +72,6 @@ class ProcedureStateMachine:
             self._rot.cmd_clear_error()
             self._vert.cmd_clear_error()
             self._step = ProcedureStep.IDLE
-            print("[PROC] RESET -> IDLE")
-    
-    def cmd_initialize(self) -> None:
-        self._rot.cmd_initialize()
-        self._vert.cmd_initialize()
-        self._step = ProcedureStep.IDLE
-        print("[PROC] INITIALIZED -> IDLE")
-
-    
 
     # ── Tick ──────────────────────────────────────────────────────────────────
 
@@ -126,42 +119,32 @@ class ProcedureStateMachine:
                 self._enter_step(ProcedureStep.COMPLETE)
 
         elif step == ProcedureStep.COMPLETE:
-            print("[PROC] Procedure COMPLETE")
             self._rot.cmd_disable()
             self._vert.cmd_disable()
             self._step = ProcedureStep.IDLE
 
-    # ── Private helpers ───────────────────────────────────────────────────────
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _enter_step(self, step: ProcedureStep) -> None:
         self._step = step
-        print(f"[PROC] -> {step.name}")
 
         if step == ProcedureStep.HOMING:
             self._rot.cmd_home()
             self._vert.cmd_home()
-
         elif step == ProcedureStep.MOVE_ROT_1:
             self._rot.cmd_move_to(ROT_POS_1)
-
         elif step == ProcedureStep.MOVE_VERT_1:
             self._vert.cmd_move_to(VERT_POS_1)
-
         elif step in (ProcedureStep.WAIT_1, ProcedureStep.WAIT_2):
             self._wait_start = time.monotonic()
-
         elif step == ProcedureStep.MOVE_VERT_2:
             self._vert.cmd_move_to(VERT_POS_2)
-
         elif step == ProcedureStep.MOVE_ROT_2:
             self._rot.cmd_move_to(ROT_POS_2)
-
         elif step == ProcedureStep.MOVE_VERT_3:
             self._vert.cmd_move_to(VERT_POS_3)
-
         elif step == ProcedureStep.MOVE_VERT_4:
             self._vert.cmd_move_to(VERT_POS_4)
-
         elif step == ProcedureStep.HOMING_FINAL:
             self._rot.cmd_home()
             self._vert.cmd_home()

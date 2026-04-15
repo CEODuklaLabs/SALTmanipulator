@@ -27,3 +27,10 @@ SM16relind>=0.1.0
 SM16inpind>=0.1.0
 SM8inputs>=0.1.0
 SM8relind>=0.1.0
+
+# ── UPS (Suptronics X1205) ────────────────────────────────────────────────────
+smbus2>=0.4.0       # I2C komunikace s MAX17048 fuel gauge
+gpiod>=1.5.0        # GPIO čtení stavu AC napájení (pin 6)
+
+# ── Arduino serial driver (ADRU/code.cpp) ─────────────────────────────────────
+pyserial>=3.5       # Sériová komunikace s Arduino UNO/Mega
