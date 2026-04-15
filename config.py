@@ -2,64 +2,56 @@
 INPUT_BOARD1_STACK  = 0
 OUTPUT_BOARD1_STACK = 1
 OUTPUT_BOARD2_STACK = 2
-INPUT_BOARD2_STACK = 3
-RESERVED_STACKS = [4, 5, 6, 7]   # For future expansion (e.g. more I/O boards)
+INPUT_BOARD2_STACK  = 3
 
-# ── Input channel assignments (16DI, channels 1–16) ──────────────────────────
-CH_RUN_BTN          = 1   # Run procedure
-CH_STOP_BTN         = 2   # Stop / abort
-CH_PROC_SEL_1       = 3   # Procedure select 1 (binary)
-CH_PROC_SEL_2       = 4   # Procedure select 2 (binary)
-CH_PROC_SEL_3       = 5   # Procedure select 3 (binary);
-CH_PROC_SEL_4       = 6   # Procedure select 4 (binary)
-CH_PROC_SEL_5       = 7   # Procedure select 5 (binary)
-CH_PROC_SEL_6       = 8   # Procedure select 6 (binary)
-CH_JOG_ROT_FWD      = 6   # Manual jog: rotation forward
-CH_JOG_ROT_REV      = 7   # Manual jog: rotation reverse
-CH_JOG_VERT_UP      = 8   # Manual jog: vertical up
-CH_JOG_VERT_DOWN    = 9   # Manual jog: vertical down
-CH_HOME_ROT         = 10  # Rotation home sensor (HIGH = at home)
-CH_HOME_VERT        = 11  # Vertical home sensor (HIGH = at home)
+# ── Input channel assignments ─────────────────────────────────────────────────
+CH_RUN_BTN      = 1    # Run procedure
+CH_STOP_BTN     = 2    # Stop / abort
+CH_JOG_ROT_FWD  = 6    # Manual jog: rotation forward
+CH_JOG_ROT_REV  = 7    # Manual jog: rotation reverse
+CH_JOG_VERT_UP  = 8    # Manual jog: vertical up
+CH_JOG_VERT_DOWN = 9   # Manual jog: vertical down
+CH_HOME_ROT     = 10   # Rotation home sensor (HIGH = at home)
+CH_HOME_VERT    = 11   # Vertical home sensor (HIGH = at home)
 
-# ── Output channel assignments (16DO, channels 1–16) ─────────────────────────
-CH_START_BTN_LED = 1    # Start button LED (HIGH = on)
-CH_STOP_BTN_LED  = 2    # Stop button LED (HIGH = on)
-CH_ESTOP_LED     = 3    # Emergency stop LED (HIGH = on)
-CH_PROC_SEL_1_LED = 4    # Procedure select 1 LED (HIGH = on)
-CH_PROC_SEL_2_LED = 5    # Procedure select 2 LED (HIGH = on)
-CH_PROC_SEL_3_LED = 6    # Procedure select 3 LED (HIGH = on)
-CH_PROC_SEL_4_LED = 7    # Procedure select 4 LED (HIGH = on)
-CH_PROC_SEL_5_LED = 8    # Procedure select 5 LED (HIGH = on)
-CH_PROC_SEL_6_LED = 9    # Procedure select 6 LED (HIGH = on)
-CH_JOG_ROT_FWD_LED   = 6   # Manual jog: rotation forward
-CH_JOG_ROT_REV_LED   = 7   # Manual jog: rotation reverse
-CH_JOG_VERT_UP_LED   = 8   # Manual jog: vertical up
-CH_JOG_VERT_DOWN_LED = 9   # Manual jog: vertical down
+# ── Output channel assignments ────────────────────────────────────────────────
+CH_START_BTN_LED  = 1
+CH_STOP_BTN_LED   = 2
+CH_ESTOP_LED      = 3
 
-# ── Motor control channel assignments (RPI GPIO) ───────────────────
-CH_PULSE_ROT   = 1    # Stepper PULSE – rotation
-CH_DIR_ROT     = 2    # Stepper DIR   – rotation
-CH_ENABLE_ROT  = 3    # Motor ENABLE  – rotation (HIGH = enabled)
-CH_PULSE_VERT  = 4    # Stepper PULSE – vertical
-CH_DIR_VERT    = 5    # Stepper DIR   – vertical
-CH_ENABLE_VERT = 6    # Motor ENABLE  – vertical
+# ── Homing ────────────────────────────────────────────────────────────────────
+ROT_HOME_BACKOFF  = 20    # Steps back-off after home sensor triggers
+VERT_HOME_BACKOFF = 20
+HOMING_TIMEOUT_S  = 30.0  # Seconds before homing → ERROR
 
-# ── Motor parameters ──────────────────────────────────────────────────────────
-ROT_PULSE_HZ        = 50    # Steps/sec for rotation axis (keep <= 100)
-VERT_PULSE_HZ       = 50    # Steps/sec for vertical axis
-ROT_HOME_BACKOFF    = 20    # Steps back-off after home sensor triggers
-VERT_HOME_BACKOFF   = 20
-HOMING_TIMEOUT_S    = 30.0  # Seconds before homing -> ERROR
-
-# ── Procedure positions (steps from home, 0 = home) ──────────────────────────
-ROT_POS_1   = 200   # Rotation position 1 (step count)
-ROT_POS_2   = 400   # Rotation position 2
-VERT_POS_1  = 100   # Vertical position 1
-VERT_POS_2  = 200   # Vertical position 2
-VERT_POS_3  = 150   # Vertical position 3
-VERT_POS_4  = 0     # Vertical position 4 (home level)
+# ── Procedure positions (steps from home) ─────────────────────────────────────
+ROT_POS_1   = 200
+ROT_POS_2   = 400
+VERT_POS_1  = 100
+VERT_POS_2  = 200
+VERT_POS_3  = 150
+VERT_POS_4  = 0
 
 # ── Timing ────────────────────────────────────────────────────────────────────
-WAIT_TIME_1 = 2.0    # Seconds to wait after vertical pos 1
-WAIT_TIME_2 = 2.0    # Seconds to wait after vertical pos 3
-LOOP_PERIOD = 0.005  # Main loop period in seconds (200 Hz)
+WAIT_TIME_1           = 2.0    # [s] – pauza po VERT_POS_1
+WAIT_TIME_2           = 2.0    # [s] – pauza po VERT_POS_3
+LOOP_PERIOD           = 0.005  # [s] – perioda control loop (200 Hz)
+INPUT_SCAN_INTERVAL_S = 0.010  # [s] – perioda vstupního scanu (100 Hz)
+
+# ── Arduino serial motor driver (ADRU/code.cpp) ───────────────────────────────
+ARDUINO_PORT          = "/dev/ttyACM0"
+ARDUINO_BAUD          = 115200
+ARDUINO_READY_TIMEOUT = 5.0    # [s] – max čekání na "READY"
+ARDUINO_MAX_SPEED     = 5000   # [krok/s] – výchozí max rychlost
+ARDUINO_ACCELERATION  = 1000   # [krok/s²] – výchozí akcelerace
+ARDUINO_HOME_SPEED    = 500    # [krok/s] – rychlost při homingu
+
+# ── UPS – Suptronics X1205 ────────────────────────────────────────────────────
+UPS_ENABLED            = True
+UPS_I2C_BUS            = 1
+UPS_AC_GPIO_CHIP       = "gpiochip0"
+UPS_AC_GPIO_PIN        = 6       # HIGH = AC přítomno, LOW = AC odpojeno
+UPS_POLL_INTERVAL_S    = 10.0   # [s]
+UPS_LOW_BAT_THRESHOLD  = 20.0   # [%] – vypnutí při AC loss pod tuto hodnotu
+UPS_CRITICAL_VOLTAGE_V = 3.20   # [V] – okamžité vypnutí
+UPS_SHUTDOWN_DELAY_S   = 30     # [s] – prodleva při nízké baterii
