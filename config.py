@@ -41,7 +41,11 @@ CH_HOME_ROT   = None   # referenční senzor rotace    – bez něj homing nepoj
 CH_HOME_VERT  = None   # referenční senzor pojezdu   – bez něj homing nepojede
 
 # ── Vstupy – HV modul  (0x23, globální kanály 33..48, 230 V) ───────────────
-CH_ESTOP_IN   = 33     # nouzový stop – aktivní HIGH (stroj OK = LOW)
+CH_ESTOP_IN             = 33     # nouzový stop – jediný HV vstup, pozice 1
+# !!! DOČASNĚ False – bench test, e-stop není zapojený, bere se že je vše OK.
+# Na stroji přepni na True a ověř polaritu níže.
+ESTOP_INPUT_ENABLED     = True
+ESTOP_INPUT_ACTIVE_HIGH = False   # True = nouzový stop při HIGH; False = při LOW
 
 # ── Výstupy – modul HV8  (0x27, globální kanály 1..8) ──────────────────────
 CH_MOTOR_PWR_RESET  = 7  # RESET z webu: krátký pulz → sepne stykače napájení motorů

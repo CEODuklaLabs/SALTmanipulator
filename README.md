@@ -44,9 +44,12 @@ inicializace: rameno na home senzorech → pozice se přijme; jinak (a `AUTO_HOM
 automatický homing (`INIT_Z → INIT_R`). START / homing jsou zablokované, dokud není
 napájení ON.
 
-**Nouzový stop** (HV modul, in1, aktivní HIGH – stroj OK = LOW): hardware odpojí
-napájení motorů, software na náběžnou hranu přejde do `ESTOP`, zruší panel-jog a
-napájení. Total-stop v rozvaděči navíc detekuje UPS monitor (ztráta AC) a udělá totéž.
+**Nouzový stop** (jediný HV vstup, kanál 33): hardware odpojí napájení motorů, software
+na náběžnou hranu přejde do `ESTOP`, zruší panel-jog a napájení. Total-stop v rozvaděči
+navíc detekuje UPS monitor (ztráta AC) a udělá totéž.
+Vyhodnocení řídí `config.ESTOP_INPUT_ENABLED` (**dočasně `False`** – bench test, e-stop
+nezapojený → bere se že je OK) a `ESTOP_INPUT_ACTIVE_HIGH` (polarita). Na stroji obojí
+nastav.
 
 ## Volba receptury (P1–P6)
 

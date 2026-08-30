@@ -195,6 +195,13 @@ def _motor_by_axis(axis: str):
 
 # ── Control loop (200 Hz) ─────────────────────────────────────────────────────
 
+def _estop_active(raw_val) -> bool:
+    """Vyhodnotí HV vstup nouzového stopu (respektuje ESTOP_INPUT_ENABLED / polaritu)."""
+    if not config.ESTOP_INPUT_ENABLED:
+        return False
+    return bool(raw_val) == config.ESTOP_INPUT_ACTIVE_HIGH
+
+
 def _run_init_homing() -> None:
     """Po RESETu / obnově napájení: rameno na home senzorech → přijmi pozici;
     jinak (a je-li AUTO_HOME_ON_STARTUP) automatický homing."""
@@ -243,7 +250,7 @@ def _control_loop() -> None:
                 _motor_power.clear()
                 init_done = False
             elif cmd == "reset":
-                if hw.read_input(config.CH_ESTOP_IN):
+                if _estop_active(hw.read_input(config.CH_ESTOP_IN)):
                     log.warning("[RESET] odmítnuto – nouzový stop je stále aktivní")
                 else:
                     rel7_until = t_start + config.MOTOR_PWR_PULSE_S   # pulz stykačů
@@ -302,14 +309,14 @@ def _control_loop() -> None:
         mode   = _get_mode()
         inputs = hw.read_all_inputs()
 
-        # Nouzový stop (HV in1, aktivní HIGH) – náběžná hrana → ESTOP
-        estop_in = bool(inputs.get(config.CH_ESTOP_IN))
-        if estop_in and not prev_inputs.get(config.CH_ESTOP_IN):
+        # Nouzový stop (jediný HV vstop) – náběžná hrana → ESTOP
+        estop_in = _estop_active(inputs.get(config.CH_ESTOP_IN))
+        if estop_in and not _estop_active(prev_inputs.get(config.CH_ESTOP_IN)):
             procedure.cmd_estop()
             _panel_jog.clear()
             _motor_power.clear()
             init_done = False
-            log.warning("[ESTOP] nouzový stop na panelu")
+            log.warning("[ESTOP] nouzový stop")
 
         # STOP – funguje vždy, i v REMOTE
         if inputs.get(config.CH_STOP_BTN) and not prev_inputs.get(config.CH_STOP_BTN):
