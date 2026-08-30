@@ -75,10 +75,12 @@ class UPSMonitor:
         self,
         cfg,
         estop_callback: Optional[Callable[[], None]] = None,
+        ac_loss_callback: Optional[Callable[[], None]] = None,
         enabled: Optional[bool] = None,
     ) -> None:
         self._cfg       = cfg
         self._estop_cb  = estop_callback
+        self._ac_loss_cb = ac_loss_callback   # volá se jednou při hraně ztráty AC (total-stop)
         self._enabled   = enabled if enabled is not None else getattr(cfg, "UPS_ENABLED", True)
         self._status    = UPSStatus()
         self._lock      = threading.Lock()
@@ -208,7 +210,12 @@ class UPSMonitor:
         if not status.ac_present:
             if self._ac_lost_since is None:
                 self._ac_lost_since = now
-                logger.warning("[UPS] AC odpojeno. Baterie: %.1f%%", status.capacity)
+                logger.warning("[UPS] AC odpojeno (total-stop?). Baterie: %.1f%%", status.capacity)
+                if self._ac_loss_cb:
+                    try:
+                        self._ac_loss_cb()
+                    except Exception as exc:
+                        logger.error("[UPS] ac_loss callback selhal: %s", exc)
 
             status.warning = True
             if status.capacity < self._cfg.UPS_LOW_BAT_THRESHOLD:

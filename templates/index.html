@@ -26,6 +26,10 @@
   }
   .badge-ok   { background: var(--blue);   color: #fff; }
   .badge-fail { background: var(--red);    color: #fff; }
+  .badge-local  { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .badge-remote { background: var(--accent);   color: #fff; }
+  .badge-green  { background: var(--green); color: #04220f; }
+  .badge-red    { background: var(--red);   color: #fff; animation: blink .8s ease-in-out infinite; }
   .conn-dot {
     width: 8px; height: 8px; border-radius: 50%;
     background: var(--muted); transition: background .3s; margin-left: auto;
@@ -135,6 +139,18 @@
   .btn-apply-all { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 4px; width: 100%; }
   .btn-apply-all:hover { background: var(--border); }
 
+  /* ── Receptury P1–P6 ── */
+  .recipe-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  @media (max-width: 640px) { .recipe-grid { grid-template-columns: repeat(3, 1fr); } }
+  .recipe-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 6px; text-align: center; cursor: pointer; transition: background .12s, border-color .12s; }
+  .recipe-btn:not(:disabled):hover { background: var(--border); }
+  .recipe-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .recipe-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .recipe-btn .rp-name { font-size: 14px; font-weight: 700; display: block; }
+  .recipe-btn .rp-times { font-size: 10px; color: var(--muted); display: block; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .recipe-btn.active .rp-times { color: #dbeafe; }
+  #recipeInfo { margin-top: 10px; color: var(--muted); font-size: 12px; }
+
   /* ── Controls ── */
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
   button { cursor: pointer; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: 7px; border: 1px solid transparent; transition: background .15s, opacity .15s; }
@@ -147,6 +163,8 @@
   .btn-estop:not(:disabled):hover   { background: #f87171; }
   .btn-reset   { background: var(--surface2); color: var(--text); border-color: var(--border); }
   .btn-reset:not(:disabled):hover   { background: var(--border); }
+  .btn-on      { background: var(--green); color: #04220f; border-color: var(--green); }
+  .btn-on:not(:disabled):hover      { background: #4ade80; }
   .btn-jog     { background: var(--surface2); color: var(--text); border-color: var(--border); padding: 7px 10px; font-size: 18px; }
   .btn-jog:not(:disabled):hover     { background: var(--border); }
 
@@ -165,7 +183,10 @@
 
 <header>
   <h1>SALT Manipulator</h1>
+  <span class="badge" id="statusBadge" title="Stav stroje">–</span>
+  <span class="badge" id="powerBadge" title="Napájení motorů">–</span>
   <span class="badge badge-ok" id="arduinoBadge">ARDUINO</span>
+  <span class="badge" id="modeBadge" title="Řízení">–</span>
   <span class="conn-dot" id="connDot" title="SSE připojení"></span>
 </header>
 
@@ -205,8 +226,8 @@
     <div class="progress-wrap"><div class="progress-bar" id="rotProg" style="width:0%"></div></div>
     <div class="card-title" style="margin-top:8px">Ruční pojezd</div>
     <div class="jog-grid">
-      <button class="btn-jog" id="rotFwd" onclick="jog('rot','fwd')">◀ FWD</button>
-      <button class="btn-jog" id="rotRev" onclick="jog('rot','rev')">REV ▶</button>
+      <button class="btn-jog" id="rotFwd" onpointerdown="jogStart('rot','fwd')" onpointerup="jogStop('rot')" onpointerleave="jogStop('rot')" onpointercancel="jogStop('rot')">◀ FWD</button>
+      <button class="btn-jog" id="rotRev" onpointerdown="jogStart('rot','rev')" onpointerup="jogStop('rot')" onpointerleave="jogStop('rot')" onpointercancel="jogStop('rot')">REV ▶</button>
     </div>
   </div>
 
@@ -221,8 +242,8 @@
     <div class="progress-wrap"><div class="progress-bar" id="vertProg" style="width:0%"></div></div>
     <div class="card-title" style="margin-top:8px">Ruční pojezd</div>
     <div class="jog-grid">
-      <button class="btn-jog" id="vertUp"   onclick="jog('vert','fwd')">▲ UP</button>
-      <button class="btn-jog" id="vertDown" onclick="jog('vert','rev')">▼ DOWN</button>
+      <button class="btn-jog" id="vertUp"   onpointerdown="jogStart('vert','fwd')" onpointerup="jogStop('vert')" onpointerleave="jogStop('vert')" onpointercancel="jogStop('vert')">▲ UP</button>
+      <button class="btn-jog" id="vertDown" onpointerdown="jogStart('vert','rev')" onpointerup="jogStop('vert')" onpointerleave="jogStop('vert')" onpointercancel="jogStop('vert')">▼ DOWN</button>
     </div>
   </div>
 
@@ -271,28 +292,39 @@
     </div>
   </div>
 
+  <!-- Receptura P1–P6 -->
+  <div class="card card-full">
+    <div class="card-title">Receptura – zvol před startem</div>
+    <div class="recipe-grid" id="recipeGrid"></div>
+    <div id="recipeInfo">Není zvolena receptura.</div>
+  </div>
+
   <!-- Controls -->
   <div class="card card-full">
     <div class="card-title">Ovládání</div>
     <div class="btn-row">
       <button class="btn-primary" id="btnStart"    onclick="cmd('start')">▶ START</button>
       <button class="btn-stop"    id="btnStop"     onclick="cmd('stop')">⏹ STOP</button>
-      <button class="btn-reset"   id="btnReset"    onclick="cmd('reset')">↺ RESET</button>
+      <button class="btn-reset"   id="btnReset"    onclick="cmd('reset')" title="Sepne napájení motorů (pulz relé) a odemkne stroj">↻ RESET (napájení)</button>
       <button class="btn-reset"   id="btnHomeRot"  onclick="cmd('home',{axis:'rot'})">⌂ Home ROT</button>
       <button class="btn-reset"   id="btnHomeVert" onclick="cmd('home',{axis:'vert'})">⌂ Home VERT</button>
       <button class="btn-estop"   id="btnEstop"    onclick="cmd('estop')">⛔ E-STOP</button>
+      <button class="btn-primary" id="btnClaim"    onclick="cmd('claim')"   title="Web převezme řízení, panel se vypne">🖥 Převzít řízení</button>
+      <button class="btn-reset"   id="btnRelease"  onclick="cmd('release')" title="Vrátí řízení fyzickému panelu">↩ Předat na panel</button>
+      <button class="btn-reset"   id="btnPanelJog" onclick="togglePanelJog()" title="Povolí/zakáže jog tlačítka na fyzickém panelu">🕹 Panel jog: –</button>
     </div>
+    <div style="margin-top:10px;color:var(--muted);font-size:12px" id="modeHint"></div>
   </div>
 
   <!-- Inputs -->
   <div class="card">
-    <div class="card-title">Vstupy (16DI)</div>
+    <div class="card-title">Vstupy (LV1 1–16, LV2 17–32, HV 33–48)</div>
     <div class="io-grid" id="inputGrid"></div>
   </div>
 
   <!-- Outputs -->
   <div class="card">
-    <div class="card-title">Výstupy (16DO)</div>
+    <div class="card-title">Výstupy (HV8 1–8, LV16 9–24)</div>
     <div class="io-grid" id="outputGrid"></div>
   </div>
 
@@ -302,17 +334,23 @@
 
 <script>
 const INPUT_LABELS = {
-  1:'RUN', 2:'STOP', 6:'JOG R+', 7:'JOG R-', 8:'JOG V+', 9:'JOG V-',
-  10:'HOME ROT', 11:'HOME VERT'
+  1:'JOG Z-', 2:'JOG Z+', 3:'JOG R-', 4:'JOG R+',
+  9:'P6', 10:'P5', 11:'P4', 12:'P3', 13:'P2', 14:'P1',
+  15:'STOP', 16:'START',
+  33:'E-STOP (HV)'
 };
-const OUTPUT_LABELS = { 1:'RUN LED', 2:'STOP LED', 3:'ESTOP LED' };
+const OUTPUT_LABELS = { 7:'PWR RESET', 8:'CHYBA/OK' };
+const N_IN = 48, N_OUT = 24;
 
 const PROC_STEPS = [
-  'IDLE','HOMING','MOVE_ROT_1','MOVE_VERT_1','WAIT_1',
-  'MOVE_VERT_2','MOVE_ROT_2','MOVE_VERT_3','WAIT_2',
-  'MOVE_VERT_4','HOMING_FINAL','COMPLETE'
+  'IDLE','HOMING_Z','HOMING_R','ROT_TO_FURNACE','Z_DOWN_FURNACE','DWELL_FURNACE',
+  'Z_UP_FROM_FURNACE','ROT_TO_COOLING','Z_DOWN_COOLING','DWELL_COOLING',
+  'Z_UP_FROM_COOLING','ROT_TO_HOME','COMPLETE'
 ];
-const TERMINAL = new Set(['STOPPED','ESTOP']);
+const TERMINAL = new Set(['STOPPED','ESTOP','FAULT']);
+let CTRL_MODE = 'LOCAL';
+let PANEL_JOG = false;
+let lastFault = '';
 
 // Build grids
 function buildGrid(id, count, labels) {
@@ -333,9 +371,20 @@ function buildSteps() {
     t.appendChild(d);
   });
 }
+function buildRecipes() {
+  const g = document.getElementById('recipeGrid');
+  for (let n = 1; n <= 6; n++) {
+    const b = document.createElement('button');
+    b.className = 'recipe-btn'; b.id = `recipe-${n}`;
+    b.onclick = () => selectRecipe(n);
+    b.innerHTML = `<span class="rp-name">P${n}</span><span class="rp-times" id="recipe-${n}-t">–</span>`;
+    g.appendChild(b);
+  }
+}
 buildSteps();
-buildGrid('inputGrid',  16, INPUT_LABELS);
-buildGrid('outputGrid', 16, OUTPUT_LABELS);
+buildRecipes();
+buildGrid('inputGrid',  N_IN,  INPUT_LABELS);
+buildGrid('outputGrid', N_OUT, OUTPUT_LABELS);
 
 // Toast
 let toastTimer;
@@ -391,6 +440,31 @@ function updateUI(s) {
   ab.textContent = s.arduino_connected ? 'ARDUINO ●' : 'ARDUINO ○';
   ab.className = 'badge ' + (s.arduino_connected ? 'badge-ok' : 'badge-fail');
 
+  // Stavová kontrolka OK / CHYBA
+  const sb = document.getElementById('statusBadge');
+  sb.textContent = s.status_ok ? '● OK' : '● CHYBA';
+  sb.className = 'badge ' + (s.status_ok ? 'badge-green' : 'badge-red');
+
+  // Napájení motorů
+  const pw = document.getElementById('powerBadge');
+  pw.textContent = s.motor_power ? 'NAPÁJENÍ: ON' : 'NAPÁJENÍ: OFF';
+  pw.className = 'badge ' + (s.motor_power ? 'badge-green' : 'badge-red');
+  if (s.estop_input) { sb.textContent = '● NOUZOVÝ STOP'; }
+
+  // Řízení LOCAL / REMOTE
+  CTRL_MODE = s.mode || 'LOCAL';
+  const remote = CTRL_MODE === 'REMOTE';
+  const mb = document.getElementById('modeBadge');
+  mb.textContent = remote ? 'ŘÍZENÍ: WEB' : 'ŘÍZENÍ: PANEL';
+  mb.className = 'badge ' + (remote ? 'badge-remote' : 'badge-local');
+  document.getElementById('modeHint').textContent = remote
+    ? 'Web má řízení. Fyzická tlačítka (mimo STOP) jsou vypnutá – „Předat na panel“ je vrátí. „Panel jog“ zvlášť povolí jog tlačítka na panelu.'
+    : 'Řídí fyzický panel. Ovládání z webu je zamčené – klikni „Převzít řízení“.';
+
+  // Fault hláška
+  if (s.fault_msg && s.fault_msg !== lastFault) toast('FAULT: ' + s.fault_msg);
+  lastFault = s.fault_msg || '';
+
   // Procedure
   const step = s.procedure;
   document.getElementById('procLabel').textContent = step.replace(/_/g,' ');
@@ -406,22 +480,34 @@ function updateUI(s) {
       if (i < idx)  el.classList.add('done');
       if (i === idx) el.classList.add('active');
     }
-    if (step === 'ESTOP') el.classList.add('error');
+    if (step === 'ESTOP' || step === 'FAULT') el.classList.add('error');
   });
 
-  // Buttons
+  // Buttons – aktivní jen když má web řízení (mimo STOP/ESTOP/RESET)
   const idle = step === 'IDLE';
   const running = !idle && !TERMINAL.has(step) && step !== 'COMPLETE';
-  const canReset = TERMINAL.has(step) || step === 'COMPLETE';
-  document.getElementById('btnStart').disabled    = !idle;
+  const pwr = !!s.motor_power;
+  // RESET: kdykoliv když je vypnuté napájení nebo stroj v terminálním stavu
+  const canReset = !pwr || TERMINAL.has(step) || step === 'COMPLETE';
+  const jogOk = remote && idle && pwr;
+  document.getElementById('btnStart').disabled    = !(remote && idle && pwr && s.recipe_id != null);
   document.getElementById('btnStop').disabled     = !running;
-  document.getElementById('btnReset').disabled    = !canReset;
-  document.getElementById('btnHomeRot').disabled  = !idle;
-  document.getElementById('btnHomeVert').disabled = !idle;
-  document.getElementById('rotFwd').disabled  = !(idle && s.rot.state  === 'IDLE');
-  document.getElementById('rotRev').disabled  = !(idle && s.rot.state  === 'IDLE');
-  document.getElementById('vertUp').disabled  = !(idle && s.vert.state === 'IDLE');
-  document.getElementById('vertDown').disabled = !(idle && s.vert.state === 'IDLE');
+  document.getElementById('btnReset').disabled    = !(canReset && !s.estop_input);
+  document.getElementById('btnHomeRot').disabled  = !(remote && idle && pwr);
+  document.getElementById('btnHomeVert').disabled = !(remote && idle && pwr);
+  document.getElementById('btnRelease').disabled  = !remote;
+  document.getElementById('btnClaim').disabled    = remote;
+
+  // Povolení ručního jogu z fyzického panelu
+  PANEL_JOG = !!s.panel_jog;
+  const pj = document.getElementById('btnPanelJog');
+  pj.textContent = '🕹 Panel jog: ' + (PANEL_JOG ? 'ZAP' : 'VYP');
+  pj.className = PANEL_JOG ? 'btn-on' : 'btn-reset';
+  pj.disabled = !remote;
+  document.getElementById('rotFwd').disabled   = !(jogOk && s.rot.state  === 'IDLE');
+  document.getElementById('rotRev').disabled   = !(jogOk && s.rot.state  === 'IDLE');
+  document.getElementById('vertUp').disabled   = !(jogOk && s.vert.state === 'IDLE');
+  document.getElementById('vertDown').disabled = !(jogOk && s.vert.state === 'IDLE');
 
   updateMotor('rot',  s.rot);
   updateMotor('vert', s.vert);
@@ -430,11 +516,29 @@ function updateUI(s) {
   if (s.rot.params)  { fillParam('rotMaxSpeed',  s.rot.params.max_speed); fillParam('rotAccel',  s.rot.params.acceleration); fillParam('rotHomeSpeed',  s.rot.params.home_speed); }
   if (s.vert.params) { fillParam('vertMaxSpeed', s.vert.params.max_speed); fillParam('vertAccel', s.vert.params.acceleration); fillParam('vertHomeSpeed', s.vert.params.home_speed); }
 
-  // I/O
-  for (let ch = 1; ch <= 16; ch++) {
-    document.getElementById(`inputGrid-${ch}`)?.classList.toggle('active',  !!s.inputs[ch]);
-    document.getElementById(`outputGrid-${ch}`)?.classList.toggle('active', !!s.outputs[ch]);
+  // Receptury P1–P6
+  const recSelectable = remote && idle;
+  for (let n = 1; n <= 6; n++) {
+    const b = document.getElementById(`recipe-${n}`);
+    const r = s.recipes && s.recipes[n];
+    document.getElementById(`recipe-${n}-t`).textContent = r ? `${r.furnace_time_s}/${r.cooling_time_s}s` : '–';
+    b.classList.toggle('active', s.recipe_id === n);
+    b.disabled = !recSelectable && s.recipe_id !== n;
   }
+  const ri = document.getElementById('recipeInfo');
+  if (s.recipe_id != null) {
+    ri.textContent = `Zvolena P${s.recipe_id} – pec ${s.recipe.furnace_time_s}s, chlazení ${s.recipe.cooling_time_s}s.`;
+    ri.style.color = 'var(--green)';
+  } else {
+    ri.textContent = 'Není zvolena receptura – START je zablokovaný. Zvol P1–P6 (na panelu nebo zde).';
+    ri.style.color = 'var(--yellow)';
+  }
+
+  // I/O
+  for (let ch = 1; ch <= N_IN; ch++)
+    document.getElementById(`inputGrid-${ch}`)?.classList.toggle('active', !!s.inputs[ch]);
+  for (let ch = 1; ch <= N_OUT; ch++)
+    document.getElementById(`outputGrid-${ch}`)?.classList.toggle('active', !!s.outputs[ch]);
 
   updateUPS(s.ups);
 }
@@ -454,9 +558,10 @@ function stepClass(step) {
   if (step === 'IDLE')          return 'badge-idle';
   if (step === 'STOPPED')       return 'badge-stopped';
   if (step === 'ESTOP')         return 'badge-estop';
+  if (step === 'FAULT')         return 'badge-estop';
   if (step === 'COMPLETE')      return 'badge-complete';
-  if (step.startsWith('WAIT'))  return 'badge-waiting';
-  if (step.includes('HOMING'))  return 'badge-homing';
+  if (step.startsWith('DWELL')) return 'badge-waiting';
+  if (step.startsWith('HOMING') || step.startsWith('INIT')) return 'badge-homing';
   return 'badge-running';
 }
 
@@ -468,7 +573,11 @@ async function cmd(command, args = {}) {
     });
   } catch(e) { toast('Chyba: ' + e.message); }
 }
-function jog(axis, direction) { cmd('jog', {axis, direction}); }
+function jogStart(axis, direction) { if (CTRL_MODE === 'REMOTE') cmd('jog', {axis, direction}); }
+function jogStop(axis)             { cmd('jog_stop', {axis}); }
+
+function selectRecipe(n) { if (CTRL_MODE === 'REMOTE') cmd('select_recipe', {id: n}); }
+function togglePanelJog() { cmd('panel_jog', {enabled: !PANEL_JOG}); }
 
 // Motor params
 function applyParam(axis, key, inputId) {
@@ -492,9 +601,14 @@ function applyAll(axis) {
 }
 
 // SSE
+let claimed = false;
 function connectSSE() {
   const es = new EventSource('/api/events');
   const dot = document.getElementById('connDot');
+  es.onopen = () => {
+    // Přihlášení do web aplikace = převzetí řízení (panel se vypne).
+    if (!claimed) { cmd('claim'); claimed = true; }
+  };
   es.onmessage = e => {
     dot.classList.add('ok');
     try { updateUI(JSON.parse(e.data)); } catch(err) { console.error(err); }

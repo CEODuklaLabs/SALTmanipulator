@@ -1,32 +1,19 @@
 # SALT Manipulator – Python dependencies
 #
-# 1) Standardní závislosti (pip):
-#
 #       pip install -r requirements.txt
 #
-# 2) Hardwarové knihovny Sequent Microsystems (pouze Raspberry Pi):
-#    Tyto nejsou na PyPI – instalují se z GitHubu přes make:
-#
-#       # 16-vstupní deska (lib16inpind)
-#       git clone https://github.com/SequentMicrosystems/16inpind-rpi.git
-#       cd 16inpind-rpi && sudo make install && cd ..
-#
-#       # 16-výstupní deska / relé (lib16relind)
-#       git clone https://github.com/SequentMicrosystems/16relind-rpi.git
-#       cd 16relind-rpi && sudo make install && cd ..
-#
-#    Před instalací musí být povoleno I2C:
+# Na Raspberry Pi musí být povoleno I2C:
 #       sudo raspi-config  -> Interface Options -> I2C -> Enable
+# (nebo: bash setup.sh --hardware)
 #
-#    Bez hardwaru ponechte v config.py  SIMULATE = True  a tyto
-#    knihovny instalovat nemusíte.
+# Názvy knihoven desek se konfigurují v config.INPUT_BOARDS / config.OUTPUT_BOARD.
 
 # ── Web dashboard ─────────────────────────────────────────────────────────────
 flask>=3.0
-SM16relind>=0.1.0
-SM16inpind>=0.1.0
-SM8inputs>=0.1.0
-SM8relind>=0.1.0
+
+# ── I/O desky Sequent Microsystems (Raspberry Pi) ───────────────────────────
+# hardware.py na ně mluví přímo přes smbus (adresy/registry v config.py),
+# knihovny SM* nejsou potřeba. smbus bývá součástí python3-smbus (apt).
 
 # ── UPS (Suptronics X1205) ────────────────────────────────────────────────────
 smbus2>=0.4.0       # I2C komunikace s MAX17048 fuel gauge

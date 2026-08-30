@@ -71,20 +71,8 @@ if [ "$INSTALL_HARDWARE" = true ]; then
     sudo apt-get install -y make
   fi
 
-  TMPDIR=$(mktemp -d)
-  trap 'rm -rf "$TMPDIR"' EXIT
-
-  # 16-vstupní deska
-  echo "      Klonovám 16inpind-rpi ..."
-  git clone --quiet https://github.com/SequentMicrosystems/16inpind-rpi.git "$TMPDIR/16inpind-rpi"
-  echo "      Instaluji lib16inpind (sudo make install) ..."
-  sudo make -C "$TMPDIR/16inpind-rpi" install
-
-  # 16-výstupní deska
-  echo "      Klonovám 16relind-rpi ..."
-  git clone --quiet https://github.com/SequentMicrosystems/16relind-rpi.git "$TMPDIR/16relind-rpi"
-  echo "      Instaluji lib16relind (sudo make install) ..."
-  sudo make -C "$TMPDIR/16relind-rpi" install
+  # Python knihovny desek (SM16inpind, SM8inpind, SM8relind) se instalují
+  # z requirements.txt přes pip (viz krok [2/3]).  Zde jen povolíme I2C.
 
   # Povolit I2C
   echo ""
@@ -101,7 +89,6 @@ if [ "$INSTALL_HARDWARE" = true ]; then
 else
   echo "[3/3] Hardwarové knihovny přeskočeny."
   echo "      Pro instalaci na Raspberry Pi spusť: bash setup.sh --hardware"
-  echo "      Simulační režim (SIMULATE=True v config.py) funguje bez nich."
 fi
 
 # ── Hotovo ────────────────────────────────────────────────────────────────────

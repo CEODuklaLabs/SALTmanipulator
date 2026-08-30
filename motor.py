@@ -5,6 +5,7 @@ import time
 from enum import Enum, auto
 from typing import Optional
 
+import config
 from hardware import HardwareInterface
 
 logger = logging.getLogger(__name__)
@@ -171,6 +172,8 @@ class ArduinoMotorController:
         max_speed:          float = 5000,
         acceleration:       float = 1000,
         home_speed:         float = 500,
+        inpos_input_ch:     Optional[int] = None,
+        alarm_input_ch:     Optional[int] = None,
     ) -> None:
         assert axis_char in ("R", "Z")
         self._name      = name
@@ -178,6 +181,9 @@ class ArduinoMotorController:
         self._bridge    = bridge
         self._hw        = hw
         self._home_ch   = home_input_ch
+        self._inpos_ch  = inpos_input_ch    # InPosition z řízení osy (aktivní HIGH), volitelné
+        self._alarm_ch  = alarm_input_ch    # Alarm z řízení osy (aktivní HIGH), volitelné
+        self._inpos_armed = False           # InPosition už jednou spadl na LOW (pohyb běží)
         self._backoff_total    = home_backoff_steps
         self._homing_timeout   = homing_timeout_s
         self._max_speed        = float(max_speed)
@@ -186,11 +192,15 @@ class ArduinoMotorController:
         self._state            = MotorState.IDLE
         self._position         = 0
         self._target           = 0
+        self._position_known   = False   # True po dokončeném homingu, False po jogu
         self._homing_phase: Optional[ArduinoMotorController._Phase] = None
         self._homing_start_t   = 0.0
+        self._run_start_t      = 0.0     # čas startu RUNNING pohybu (watchdog)
+        self._jogging          = False
 
         bridge.on(f"DONE {axis_char}", self._on_done)
         bridge.on(f"STOP {axis_char}", self._on_stop)
+        bridge.on("ERR", self._on_err)
 
     # ── Properties ────────────────────────────────────────────────────────────
 
@@ -219,6 +229,10 @@ class ArduinoMotorController:
         return self._state == MotorState.ERROR
 
     @property
+    def position_known(self) -> bool:
+        return self._position_known
+
+    @property
     def max_speed(self) -> float:
         return self._max_speed
 
@@ -243,9 +257,15 @@ class ArduinoMotorController:
     def cmd_home(self) -> None:
         if self._state in (MotorState.RUNNING, MotorState.HOMING, MotorState.ERROR):
             return
+        if self._home_ch is None:
+            self._state = MotorState.ERROR
+            logger.error("[%s] HOMING nelze – home senzor nenakonfigurován (config.py)", self._name)
+            return
         self._homing_phase   = self._Phase.APPROACH
         self._homing_start_t = time.monotonic()
         self._state          = MotorState.HOMING
+        self._jogging        = False
+        self._position_known = False
         self._send_speed(self._home_speed)
         self._bridge.send(f"{self._ax}-{SerialBridge._HOMING_LARGE_MOVE}")
         logger.info("[%s] HOMING approach zahájen", self._name)
@@ -253,8 +273,11 @@ class ArduinoMotorController:
     def cmd_move_to(self, target_steps: int) -> None:
         if self._state != MotorState.IDLE or target_steps == self._position:
             return
-        self._target = target_steps
-        self._state  = MotorState.RUNNING
+        self._target       = target_steps
+        self._state        = MotorState.RUNNING
+        self._jogging      = False
+        self._inpos_armed  = False
+        self._run_start_t  = time.monotonic()
         self._send_speed(self._max_speed)
         self._bridge.send(f"{self._ax}{target_steps - self._position:+d}")
         logger.info("[%s] RUNNING target=%d (pos=%d)", self._name, target_steps, self._position)
@@ -263,11 +286,22 @@ class ArduinoMotorController:
         if self._state in (MotorState.RUNNING, MotorState.HOMING):
             self._bridge.send(f"{self._ax}X")
 
-    def cmd_jog(self, direction: Direction) -> None:
+    def cmd_jog_start(self, direction: Direction) -> None:
+        """Zahájí ruční pojezd; jede dokud nepřijde cmd_jog_stop() nebo dojezd chunku."""
         if self._state != MotorState.IDLE:
             return
-        steps = 1 if direction == Direction.FORWARD else -1
+        steps = config.JOG_CHUNK_STEPS if direction == Direction.FORWARD else -config.JOG_CHUNK_STEPS
+        self._state          = MotorState.RUNNING
+        self._jogging        = True
+        self._position_known = False   # po jogu je absolutní poloha nejistá → nutný homing
+        self._run_start_t    = time.monotonic()
+        self._send_speed(self._home_speed)
         self._bridge.send(f"{self._ax}{steps:+d}")
+        logger.info("[%s] JOG start (%s)", self._name, direction.name)
+
+    def cmd_jog_stop(self) -> None:
+        if self._jogging and self._state == MotorState.RUNNING:
+            self._bridge.send(f"{self._ax}X")
 
     def cmd_enable(self) -> None:
         self._bridge.send(f"{self._ax}E")
@@ -275,15 +309,30 @@ class ArduinoMotorController:
     def cmd_disable(self) -> None:
         self._bridge.send(f"{self._ax}D")
 
+    def assume_homed(self) -> None:
+        """Osa fyzicky sedí na home senzoru – přijmi pozici 0 bez pohybu."""
+        if self._state in (MotorState.RUNNING, MotorState.HOMING):
+            return
+        self._position       = 0
+        self._target         = 0
+        self._position_known = True
+        self._state          = MotorState.IDLE
+        logger.info("[%s] pozice přijata jako home (0)", self._name)
+
     def cmd_clear_error(self) -> None:
         if self._state == MotorState.ERROR:
-            self._state = MotorState.IDLE
+            self._state        = MotorState.IDLE
+            self._homing_phase = None
+            self._jogging      = False
             logger.info("[%s] ERROR cleared", self._name)
 
     def cmd_estop(self) -> None:
         self._bridge.send(f"{self._ax}X")
         self._bridge.send(f"{self._ax}D")
-        self._state = MotorState.ERROR
+        self._state          = MotorState.ERROR
+        self._homing_phase   = None
+        self._jogging        = False
+        self._position_known = False
         logger.warning("[%s] ESTOP", self._name)
 
     def set_params(
@@ -309,9 +358,41 @@ class ArduinoMotorController:
     # ── Tick ──────────────────────────────────────────────────────────────────
 
     def update(self) -> None:
+        now = time.monotonic()
+
+        # Alarm z řízení osy (aktivní HIGH) → ERROR
+        if (self._alarm_ch is not None
+                and self._state in (MotorState.RUNNING, MotorState.HOMING)
+                and self._hw.read_input(self._alarm_ch)):
+            self._bridge.send(f"{self._ax}X")
+            self._bridge.send(f"{self._ax}D")
+            self._state        = MotorState.ERROR
+            self._homing_phase = None
+            self._jogging      = False
+            logger.error("[%s] ALARM z řízení osy", self._name)
+            return
+
+        # RUNNING (mimo jog) – dokončení podle InPosition, jinak watchdog
+        if self._state == MotorState.RUNNING and not self._jogging:
+            if self._inpos_ch is not None:
+                inpos = self._hw.read_input(self._inpos_ch)
+                if not self._inpos_armed:
+                    if not inpos:
+                        self._inpos_armed = True          # řízení hlásí "busy"
+                elif inpos:
+                    self._position = self._target
+                    self._state    = MotorState.IDLE
+                    logger.info("[%s] pohyb dokončen dle InPosition (pos=%d)",
+                                self._name, self._position)
+                    return
+            if now - self._run_start_t > config.MOVE_TIMEOUT_S:
+                self._bridge.send(f"{self._ax}X")
+                self._state = MotorState.ERROR
+                logger.error("[%s] MOVE TIMEOUT (>%.0fs)", self._name, config.MOVE_TIMEOUT_S)
+            return
+
         if self._state != MotorState.HOMING:
             return
-        now = time.monotonic()
         if now - self._homing_start_t > self._homing_timeout:
             self._bridge.send(f"{self._ax}X")
             self._bridge.send(f"{self._ax}D")
@@ -328,11 +409,17 @@ class ArduinoMotorController:
 
     def _on_done(self, _: str) -> None:
         if self._state == MotorState.HOMING and self._homing_phase == self._Phase.BACKOFF:
-            self._position     = 0
-            self._state        = MotorState.IDLE
-            self._homing_phase = None
+            self._position       = 0
+            self._state          = MotorState.IDLE
+            self._homing_phase   = None
+            self._position_known = True
             self._send_speed(self._max_speed)
             logger.info("[%s] HOMING dokončen, position=0", self._name)
+        elif self._state == MotorState.RUNNING and self._jogging:
+            # jog dojel celý chunk – absolutní poloha je nejistá
+            self._state   = MotorState.IDLE
+            self._jogging = False
+            logger.info("[%s] JOG chunk dokončen", self._name)
         elif self._state == MotorState.RUNNING:
             self._position = self._target
             self._state    = MotorState.IDLE
@@ -347,3 +434,12 @@ class ArduinoMotorController:
         elif self._state in (MotorState.RUNNING, MotorState.HOMING):
             self._state        = MotorState.IDLE
             self._homing_phase = None
+            self._jogging      = False
+
+    def _on_err(self, line: str) -> None:
+        if self._state in (MotorState.RUNNING, MotorState.HOMING):
+            self._bridge.send(f"{self._ax}X")
+            self._state        = MotorState.ERROR
+            self._homing_phase = None
+            self._jogging      = False
+            logger.error("[%s] Arduino ERR: %s", self._name, line)
