@@ -1,0 +1,19 @@
+[Unit]
+Description=SALT Manipulator – řízení + web dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=saltmanipulator
+WorkingDirectory=/home/saltmanipulator/SALTmanipulator
+ExecStart=/home/saltmanipulator/SALTmanipulator/.venv/bin/python webapp.py
+Restart=on-failure
+RestartSec=3
+# přístup k I2C a sériové lince
+SupplementaryGroups=i2c dialout
+# aby [UPS] shutdown fungoval bez hesla, přidej do sudoers:
+#   saltmanipulator ALL=(root) NOPASSWD: /sbin/shutdown
+
+[Install]
+WantedBy=multi-user.target

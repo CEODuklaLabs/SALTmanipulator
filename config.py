@@ -100,7 +100,7 @@ REQUIRE_HOMING       = False
 AUTO_HOME_ON_STARTUP = True    # (platí jen když REQUIRE_HOMING = True)
 
 # ── Arduino serial motor driver (ADRU/code.cpp) ───────────────────────────────
-ARDUINO_PORT          = "/dev/ttyACM0"
+ARDUINO_PORT          = "/dev/ttyUSB0"
 ARDUINO_BAUD          = 115200
 ARDUINO_READY_TIMEOUT = 5.0    # [s] – max čekání na "READY"
 ARDUINO_MAX_SPEED     = 5000   # [krok/s] – výchozí max rychlost

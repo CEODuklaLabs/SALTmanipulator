@@ -96,12 +96,31 @@ senzory zapojené: doplň čísla kanálů (LV vstup #2, 17–32) a přepni `REQ
 
 ## Spuštění
 
-```bash
-bash setup.sh              # venv + pip závislosti (Flask, pyserial, …)
-bash setup.sh --hardware   # navíc knihovny Sequent Microsystems (jen na RPi, sudo)
+### Ručně (venv)
 
+```bash
+cd ~/SALTmanipulator
+bash setup.sh                 # jednorázově: .venv + pip závislosti
+                              #   (bash setup.sh --hardware = navíc povolí I2C)
 source .venv/bin/activate
-python webapp.py           # http://localhost:5000
+python webapp.py              # → http://<IP-Raspberry>:5000
+```
+
+Předpoklady na Pi:
+- povolené I2C (`sudo raspi-config` → Interface Options → I2C), uživatel ve skupinách
+  `i2c` a `dialout` (`sudo usermod -aG i2c,dialout $USER`, pak odhlásit/přihlásit),
+- Arduino na `/dev/ttyACM0` (jinak uprav `ARDUINO_PORT` v `config.py`),
+- `smbus` – buď z venv (`smbus2` z requirements se použije automaticky), nebo
+  `sudo apt install python3-smbus`.
+
+### Automaticky po startu (systemd)
+
+```bash
+sudo cp deploy/salt-manipulator.service /etc/systemd/system/
+sudo nano /etc/systemd/system/salt-manipulator.service   # zkontroluj User= a cesty
+sudo systemctl daemon-reload
+sudo systemctl enable --now salt-manipulator
+journalctl -u salt-manipulator -f                        # log
 ```
 
 ## Konfigurace
